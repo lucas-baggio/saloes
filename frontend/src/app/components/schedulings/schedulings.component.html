@@ -1,0 +1,232 @@
+<div class="px-4 sm:px-6 lg:px-8">
+  <div
+    class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8 gap-4"
+  >
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Agendamentos</h1>
+      <p class="mt-2 text-sm text-gray-600">
+        Gerencie os agendamentos de serviços
+      </p>
+    </div>
+    <button (click)="openForm()" class="btn btn-primary w-full sm:w-auto">
+      + Novo Agendamento
+    </button>
+  </div>
+
+  <!-- Form Modal -->
+  <div
+    *ngIf="showForm"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+    (click)="closeForm()"
+  >
+    <div
+      class="relative top-4 sm:top-20 mx-auto p-4 sm:p-5 border w-full max-w-md sm:w-96 shadow-lg rounded-lg bg-white m-4 sm:m-0"
+      (click)="$event.stopPropagation()"
+    >
+      <h2 class="text-xl font-bold mb-4">
+        {{ editingId ? "Editar" : "Novo" }} Agendamento
+      </h2>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Estabelecimento *
+          </label>
+          <select
+            formControlName="establishment_id"
+            class="input"
+            (change)="onEstablishmentChange()"
+          >
+            <option value="">Selecione um estabelecimento</option>
+            <option *ngFor="let est of establishments" [value]="est.id">
+              {{ est.name }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Serviço *
+          </label>
+          <select
+            formControlName="service_id"
+            class="input"
+            [disabled]="
+              !form.value.establishment_id || filteredServices.length === 0
+            "
+          >
+            <option value="">
+              {{
+                !form.value.establishment_id
+                  ? "Selecione primeiro um estabelecimento"
+                  : filteredServices.length === 0
+                  ? "Nenhum serviço disponível"
+                  : "Selecione um serviço"
+              }}
+            </option>
+            <option
+              *ngFor="let service of filteredServices"
+              [value]="service.id"
+            >
+              {{ service.name }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2"
+            >Data *</label
+          >
+          <input type="date" formControlName="scheduled_date" class="input" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2"
+            >Hora *</label
+          >
+          <input type="time" formControlName="scheduled_time" class="input" />
+        </div>
+
+        <div
+          class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3"
+        >
+          <button
+            type="submit"
+            class="btn btn-primary flex-1"
+            [disabled]="form.invalid || loading"
+          >
+            {{ editingId ? "Atualizar" : "Criar" }}
+          </button>
+          <button type="button" (click)="closeForm()" class="btn btn-secondary">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading && !showForm" class="text-center py-12">
+    <div
+      class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
+    ></div>
+    <p class="mt-2 text-gray-600">Carregando...</p>
+  </div>
+
+  <!-- List -->
+  <div *ngIf="!loading && !showForm" class="space-y-4">
+    <div
+      *ngFor="let scheduling of schedulings"
+      class="card hover:shadow-lg transition-shadow"
+    >
+      <div
+        class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4"
+      >
+        <div class="flex-1 w-full">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            {{
+              scheduling.service?.name || getServiceName(scheduling.service_id)
+            }}
+          </h3>
+          <div class="space-y-2 text-sm text-gray-600">
+            <div class="flex items-center">
+              <svg
+                class="h-4 w-4 mr-1 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <span>{{ formatDate(scheduling.scheduled_date) }}</span>
+            </div>
+            <div class="flex items-center">
+              <svg
+                class="h-4 w-4 mr-1 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>{{ scheduling.scheduled_time }}</span>
+            </div>
+            <div *ngIf="scheduling.establishment" class="flex items-center">
+              <svg
+                class="h-4 w-4 mr-1 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+              <span>{{ scheduling.establishment.name }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex space-x-2 justify-end sm:justify-start">
+          <button
+            (click)="openForm(scheduling)"
+            class="text-primary-600 hover:text-primary-700 p-2 hover:bg-primary-50 rounded-lg transition-colors"
+            title="Editar"
+          >
+            <svg
+              class="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </button>
+          <button
+            (click)="delete(scheduling.id)"
+            class="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+            title="Excluir"
+          >
+            <svg
+              class="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="schedulings.length === 0" class="text-center py-12">
+      <p class="text-gray-500">Nenhum agendamento cadastrado</p>
+      <button (click)="openForm()" class="btn btn-primary mt-4">
+        Criar primeiro agendamento
+      </button>
+    </div>
+  </div>
+</div>
