@@ -12,6 +12,11 @@ class EstablishmentController extends Controller
     {
         $user = $request->user();
 
+        // Funcionários não podem ver estabelecimentos
+        if ($user->role === 'employee') {
+            return response()->json(['message' => 'Não autorizado.'], Response::HTTP_FORBIDDEN);
+        }
+
         $establishments = Establishment::query()
             ->with('owner:id,name,email,role')
             ->withCount('services')
@@ -32,6 +37,11 @@ class EstablishmentController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
+
+        // Funcionários não podem criar estabelecimentos
+        if ($user->role === 'employee') {
+            return response()->json(['message' => 'Não autorizado. Funcionários não podem criar estabelecimentos.'], Response::HTTP_FORBIDDEN);
+        }
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],

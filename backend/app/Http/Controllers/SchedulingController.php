@@ -84,7 +84,14 @@ class SchedulingController extends Controller
             'scheduled_time' => ['required', 'date_format:H:i'],
             'service_id' => ['required', 'integer', 'exists:services,id'],
             'establishment_id' => ['required', 'integer', 'exists:establishments,id'],
+            'client_name' => ['required', 'string', 'max:255'],
+            'status' => ['sometimes', 'string', 'in:pending,confirmed,completed,cancelled'],
         ]);
+
+        // Se não fornecido, definir como 'pending'
+        if (!isset($data['status'])) {
+            $data['status'] = 'pending';
+        }
 
         // Verificar se o estabelecimento pertence ao usuário (se não for admin)
         if ($user->role !== 'admin') {
@@ -199,6 +206,8 @@ class SchedulingController extends Controller
             'scheduled_time' => ['sometimes', 'date_format:H:i'],
             'service_id' => ['sometimes', 'integer', 'exists:services,id'],
             'establishment_id' => ['sometimes', 'integer', 'exists:establishments,id'],
+            'client_name' => ['sometimes', 'string', 'max:255'],
+            'status' => ['sometimes', 'string', 'in:pending,confirmed,completed,cancelled'],
         ]);
 
         // Se estiver mudando o establishment_id, verificar permissão

@@ -16,217 +16,478 @@
   <!-- Form Modal -->
   <div
     *ngIf="showForm"
-    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
     (click)="closeForm()"
   >
     <div
-      class="relative top-4 sm:top-20 mx-auto p-4 sm:p-5 border w-full max-w-md sm:w-96 shadow-lg rounded-lg bg-white m-4 sm:m-0"
+      class="relative w-full max-w-md shadow-lg rounded-lg bg-white my-8"
       (click)="$event.stopPropagation()"
     >
-      <h2 class="text-xl font-bold mb-4">
-        {{ editingId ? "Editar" : "Novo" }} Agendamento
-      </h2>
+      <div class="p-4 sm:p-6">
+        <h2 class="text-xl font-bold mb-4">
+          {{ editingId ? "Editar" : "Novo" }} Agendamento
+        </h2>
 
-      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Estabelecimento *
-          </label>
-          <select
-            formControlName="establishment_id"
-            class="input"
-            (change)="onEstablishmentChange()"
-          >
-            <option value="">Selecione um estabelecimento</option>
-            <option *ngFor="let est of establishments" [value]="est.id">
-              {{ est.name }}
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Serviço *
-          </label>
-          <select
-            formControlName="service_id"
-            class="input"
-            [disabled]="
-              !form.value.establishment_id || filteredServices.length === 0
-            "
-          >
-            <option value="">
-              {{
-                !form.value.establishment_id
-                  ? "Selecione primeiro um estabelecimento"
-                  : filteredServices.length === 0
-                  ? "Nenhum serviço disponível"
-                  : "Selecione um serviço"
-              }}
-            </option>
-            <option
-              *ngFor="let service of filteredServices"
-              [value]="service.id"
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+          <div *ngIf="user?.role !== 'employee'">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Estabelecimento *
+            </label>
+            <select
+              formControlName="establishment_id"
+              class="input"
+              (change)="onEstablishmentChange()"
             >
-              {{ service.name }}
-            </option>
-          </select>
-        </div>
+              <option value="">Selecione um estabelecimento</option>
+              <option *ngFor="let est of establishments" [value]="est.id">
+                {{ est.name }}
+              </option>
+            </select>
+          </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2"
-            >Data *</label
-          >
-          <input type="date" formControlName="scheduled_date" class="input" />
-        </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Serviço *
+            </label>
+            <select
+              formControlName="service_id"
+              class="input"
+              [disabled]="
+                (user?.role !== 'employee' && !form.value.establishment_id) ||
+                filteredServices.length === 0
+              "
+              (change)="onServiceChange()"
+            >
+              <option value="">
+                {{
+                  user?.role === "employee"
+                    ? filteredServices.length === 0
+                      ? "Nenhum serviço disponível"
+                      : "Selecione um serviço"
+                    : !form.value.establishment_id
+                    ? "Selecione primeiro um estabelecimento"
+                    : filteredServices.length === 0
+                    ? "Nenhum serviço disponível"
+                    : "Selecione um serviço"
+                }}
+              </option>
+              <option
+                *ngFor="let service of filteredServices"
+                [value]="service.id"
+              >
+                {{ service.name }}
+              </option>
+            </select>
+          </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2"
-            >Hora *</label
-          >
-          <input type="time" formControlName="scheduled_time" class="input" />
-        </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Data *</label
+            >
+            <input type="date" formControlName="scheduled_date" class="input" />
+          </div>
 
-        <div
-          class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3"
-        >
-          <button
-            type="submit"
-            class="btn btn-primary flex-1"
-            [disabled]="form.invalid || loading"
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Hora *</label
+            >
+            <input type="time" formControlName="scheduled_time" class="input" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Nome do Cliente *</label
+            >
+            <input
+              type="text"
+              formControlName="client_name"
+              class="input"
+              placeholder="Digite o nome do cliente"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Status *</label
+            >
+            <select formControlName="status" class="input">
+              <option value="pending">Pendente</option>
+              <option value="confirmed">Confirmado</option>
+              <option value="completed">Concluído</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </div>
+
+          <div
+            class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3"
           >
-            {{ editingId ? "Atualizar" : "Criar" }}
-          </button>
-          <button type="button" (click)="closeForm()" class="btn btn-secondary">
-            Cancelar
-          </button>
-        </div>
-      </form>
+            <button
+              type="submit"
+              class="btn btn-primary flex-1"
+              [disabled]="form.invalid || loading"
+            >
+              {{ editingId ? "Atualizar" : "Criar" }}
+            </button>
+            <button
+              type="button"
+              (click)="closeForm()"
+              class="btn btn-secondary"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <!-- Loading -->
-  <div *ngIf="loading && !showForm" class="text-center py-12">
-    <div
-      class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
-    ></div>
-    <p class="mt-2 text-gray-600">Carregando...</p>
-  </div>
-
-  <!-- List -->
-  <div *ngIf="!loading && !showForm" class="space-y-4">
-    <div
-      *ngFor="let scheduling of schedulings"
-      class="card hover:shadow-lg transition-shadow"
-    >
+    <!-- Loading -->
+    <div *ngIf="loading && !showForm" class="text-center py-12">
       <div
-        class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4"
-      >
-        <div class="flex-1 w-full">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">
-            {{
-              scheduling.service?.name || getServiceName(scheduling.service_id)
-            }}
-          </h3>
-          <div class="space-y-2 text-sm text-gray-600">
-            <div class="flex items-center">
-              <svg
-                class="h-4 w-4 mr-1 flex-shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <span>{{ formatDate(scheduling.scheduled_date) }}</span>
-            </div>
-            <div class="flex items-center">
-              <svg
-                class="h-4 w-4 mr-1 flex-shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span>{{ scheduling.scheduled_time }}</span>
-            </div>
-            <div *ngIf="scheduling.establishment" class="flex items-center">
-              <svg
-                class="h-4 w-4 mr-1 flex-shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                />
-              </svg>
-              <span>{{ scheduling.establishment.name }}</span>
-            </div>
+        class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
+      ></div>
+      <p class="mt-2 text-gray-600">Carregando...</p>
+    </div>
+
+    <!-- Filtros e Busca -->
+    <div *ngIf="!loading && !showForm" class="card mb-6">
+      <div class="space-y-4">
+        <!-- Busca -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Buscar
+          </label>
+          <input
+            type="text"
+            [(ngModel)]="searchTerm"
+            (ngModelChange)="onSearchChange()"
+            placeholder="Buscar por cliente ou serviço..."
+            class="input w-full"
+          />
+        </div>
+
+        <!-- Filtros em Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <!-- Filtro por Data -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Data
+            </label>
+            <select
+              [(ngModel)]="filterDate"
+              (ngModelChange)="onFilterChange()"
+              class="input w-full"
+            >
+              <option value="">Todas as datas</option>
+              <option value="today">Hoje</option>
+              <option value="week">Última semana</option>
+              <option value="month">Último mês</option>
+              <option value="future">Futuros</option>
+              <option value="past">Passados</option>
+            </select>
+          </div>
+
+          <!-- Filtro por Estabelecimento (apenas para owners/admins) -->
+          <div *ngIf="user?.role !== 'employee'">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Estabelecimento
+            </label>
+            <select
+              [(ngModel)]="filterEstablishmentId"
+              (ngModelChange)="onFilterChange()"
+              class="input w-full"
+            >
+              <option value="">Todos os estabelecimentos</option>
+              <option *ngFor="let est of establishments" [value]="est.id">
+                {{ est.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Filtro por Serviço -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Serviço
+            </label>
+            <select
+              [(ngModel)]="filterServiceId"
+              (ngModelChange)="onFilterChange()"
+              class="input w-full"
+            >
+              <option value="">Todos os serviços</option>
+              <option *ngFor="let service of services" [value]="service.id">
+                {{ service.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Filtro por Status -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <select
+              [(ngModel)]="filterStatus"
+              (ngModelChange)="onFilterChange()"
+              class="input w-full"
+            >
+              <option value="">Todos os status</option>
+              <option value="pending">Pendente</option>
+              <option value="confirmed">Confirmado</option>
+              <option value="completed">Concluído</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
           </div>
         </div>
-        <div class="flex space-x-2 justify-end sm:justify-start">
+
+        <!-- Botão Limpar Filtros -->
+        <div class="flex justify-end">
           <button
-            (click)="openForm(scheduling)"
-            class="text-primary-600 hover:text-primary-700 p-2 hover:bg-primary-50 rounded-lg transition-colors"
-            title="Editar"
+            (click)="clearFilters()"
+            class="btn btn-secondary"
+            [disabled]="
+              !searchTerm &&
+              !filterDate &&
+              !filterServiceId &&
+              !filterEstablishmentId &&
+              !filterStatus
+            "
           >
-            <svg
-              class="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
+            Limpar Filtros
           </button>
-          <button
-            (click)="delete(scheduling.id)"
-            class="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
-            title="Excluir"
-          >
-            <svg
-              class="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
-          </button>
+        </div>
+
+        <!-- Contador de resultados -->
+        <div class="text-sm text-gray-600 pt-2 border-t">
+          Mostrando {{ filteredSchedulings.length }} de
+          {{ schedulings.length }} agendamentos
         </div>
       </div>
     </div>
 
-    <div *ngIf="schedulings.length === 0" class="text-center py-12">
-      <p class="text-gray-500">Nenhum agendamento cadastrado</p>
-      <button (click)="openForm()" class="btn btn-primary mt-4">
-        Criar primeiro agendamento
-      </button>
+    <!-- List -->
+    <div *ngIf="!loading && !showForm" class="space-y-4">
+      <div
+        *ngFor="
+          let scheduling of filteredSchedulings;
+          trackBy: trackBySchedulingId
+        "
+        class="card hover:shadow-lg transition-shadow"
+      >
+        <div
+          class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4"
+        >
+          <div class="flex-1 w-full">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">
+              {{
+                scheduling.service?.name ||
+                  getServiceName(scheduling.service_id)
+              }}
+            </h3>
+            <div class="space-y-2 text-sm text-gray-600">
+              <div class="flex items-center">
+                <svg
+                  class="h-4 w-4 mr-1 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span>{{ formatDate(scheduling.scheduled_date) }}</span>
+              </div>
+              <div class="flex items-center">
+                <svg
+                  class="h-4 w-4 mr-1 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>{{ scheduling.scheduled_time }}</span>
+              </div>
+              <div *ngIf="scheduling.establishment" class="flex items-center">
+                <svg
+                  class="h-4 w-4 mr-1 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+                <span>{{ scheduling.establishment.name }}</span>
+              </div>
+              <div *ngIf="scheduling.client_name" class="flex items-center">
+                <svg
+                  class="h-4 w-4 mr-1 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+                <span class="font-medium">{{ scheduling.client_name }}</span>
+              </div>
+              <div class="flex items-center">
+                <span
+                  [class]="
+                    'px-2 py-1 rounded-full text-xs font-medium ' +
+                    getStatusColor(scheduling.status)
+                  "
+                >
+                  {{ getStatusLabel(scheduling.status) }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 justify-end sm:justify-start"
+          >
+            <!-- Ações rápidas de status -->
+            <div class="flex space-x-1">
+              <button
+                *ngIf="scheduling.status !== 'confirmed'"
+                (click)="updateStatus(scheduling.id, 'confirmed')"
+                class="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Marcar como Confirmado"
+              >
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </button>
+              <button
+                *ngIf="scheduling.status !== 'completed'"
+                (click)="updateStatus(scheduling.id, 'completed')"
+                class="text-green-600 hover:text-green-700 p-2 hover:bg-green-50 rounded-lg transition-colors"
+                title="Marcar como Concluído"
+              >
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </button>
+              <button
+                *ngIf="scheduling.status !== 'cancelled'"
+                (click)="updateStatus(scheduling.id, 'cancelled')"
+                class="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                title="Cancelar"
+              >
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            <!-- Editar e Excluir -->
+            <div class="flex space-x-1">
+              <button
+                (click)="openForm(scheduling)"
+                class="text-primary-600 hover:text-primary-700 p-2 hover:bg-primary-50 rounded-lg transition-colors"
+                title="Editar"
+              >
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+              </button>
+              <button
+                (click)="delete(scheduling.id)"
+                class="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                title="Excluir"
+              >
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          *ngIf="filteredSchedulings.length === 0 && schedulings.length > 0"
+          class="text-center py-12"
+        >
+          <p class="text-gray-500">
+            Nenhum agendamento encontrado com os filtros aplicados.
+          </p>
+          <button (click)="clearFilters()" class="btn btn-secondary mt-4">
+            Limpar Filtros
+          </button>
+        </div>
+        <div *ngIf="schedulings.length === 0" class="text-center py-12">
+          <p class="text-gray-500">Nenhum agendamento cadastrado</p>
+          <button (click)="openForm()" class="btn btn-primary mt-4">
+            Criar primeiro agendamento
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>

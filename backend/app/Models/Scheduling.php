@@ -17,6 +17,8 @@ class Scheduling extends Model
         'scheduled_time',
         'service_id',
         'establishment_id',
+        'client_name',
+        'status',
     ];
 
     protected $casts = [

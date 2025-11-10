@@ -54,6 +54,11 @@ class ServiceController extends Controller
     {
         $user = $request->user();
 
+        // Funcionários não podem criar serviços
+        if ($user->role === 'employee') {
+            return response()->json(['message' => 'Não autorizado. Funcionários não podem criar serviços.'], Response::HTTP_FORBIDDEN);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],

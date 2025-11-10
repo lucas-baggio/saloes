@@ -8,6 +8,8 @@ import {
   TopService,
 } from '../../services/dashboard.service';
 import { AuthService } from '../../services/auth.service';
+import { SchedulingService } from '../../services/scheduling.service';
+import { Scheduling } from '../../models/service.model';
 
 @Component({
   selector: 'app-dashboard',
@@ -20,16 +22,117 @@ export class DashboardComponent implements OnInit {
   stats: DashboardStats | null = null;
   revenueChart: RevenueChart | null = null;
   topServices: TopService[] = [];
+  schedulings: Scheduling[] = [];
+  pastSchedulings: Scheduling[] = [];
+  todaySchedulings: Scheduling[] = [];
+  futureSchedulings: Scheduling[] = [];
+  totalSchedulings = 0;
+  employeeTopServices: Array<{ name: string; count: number }> = [];
   loading = true;
   selectedPeriod = 'month';
+  user: any = null;
+  isEmployee = false;
 
   constructor(
     private dashboardService: DashboardService,
-    public authService: AuthService
+    public authService: AuthService,
+    private schedulingService: SchedulingService
   ) {}
 
   ngOnInit() {
-    this.loadDashboardData();
+    this.user = this.authService.getCurrentUser();
+    this.isEmployee = this.user?.role === 'employee';
+
+    if (this.isEmployee) {
+      this.loadEmployeeDashboard();
+    } else {
+      this.loadDashboardData();
+    }
+  }
+
+  loadEmployeeDashboard() {
+    this.loading = true;
+    this.schedulingService.getAll().subscribe({
+      next: (data) => {
+        const schedulings = data.data || data || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Separar agendamentos por data (sem considerar hora para a classificação)
+        this.pastSchedulings = schedulings
+          .filter((s: Scheduling) => {
+            const scheduleDate = new Date(s.scheduled_date);
+            scheduleDate.setHours(0, 0, 0, 0);
+            return scheduleDate < today;
+          })
+          .sort((a: Scheduling, b: Scheduling) => {
+            const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);
+            const dateB = new Date(`${b.scheduled_date}T${b.scheduled_time}`);
+            return dateB.getTime() - dateA.getTime();
+          });
+
+        this.todaySchedulings = schedulings
+          .filter((s: Scheduling) => {
+            const scheduleDate = new Date(s.scheduled_date);
+            scheduleDate.setHours(0, 0, 0, 0);
+            return scheduleDate.getTime() === today.getTime();
+          })
+          .sort((a: Scheduling, b: Scheduling) => {
+            const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);
+            const dateB = new Date(`${b.scheduled_date}T${b.scheduled_time}`);
+            return dateA.getTime() - dateB.getTime();
+          });
+
+        this.futureSchedulings = schedulings
+          .filter((s: Scheduling) => {
+            const scheduleDate = new Date(s.scheduled_date);
+            scheduleDate.setHours(0, 0, 0, 0);
+            return scheduleDate > today;
+          })
+          .sort((a: Scheduling, b: Scheduling) => {
+            const dateA = new Date(`${a.scheduled_date}T${a.scheduled_time}`);
+            const dateB = new Date(`${b.scheduled_date}T${b.scheduled_time}`);
+            return dateA.getTime() - dateB.getTime();
+          });
+
+        // Todos os agendamentos ordenados
+        this.schedulings = [
+          ...this.todaySchedulings,
+          ...this.futureSchedulings,
+          ...this.pastSchedulings,
+        ];
+
+        // Total de agendamentos
+        this.totalSchedulings = schedulings.length;
+
+        // Calcular serviços mais vendidos
+        this.calculateTopServices(schedulings);
+
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+      },
+    });
+  }
+
+  calculateTopServices(schedulings: Scheduling[]) {
+    const serviceCount: { [key: string]: { name: string; count: number } } = {};
+
+    schedulings.forEach((scheduling: Scheduling) => {
+      const serviceName =
+        scheduling.service?.name || `Serviço #${scheduling.service_id}`;
+      if (serviceCount[serviceName]) {
+        serviceCount[serviceName].count++;
+      } else {
+        serviceCount[serviceName] = { name: serviceName, count: 1 };
+      }
+    });
+
+    // Converter para array e ordenar por quantidade
+    this.employeeTopServices = Object.values(serviceCount)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5); // Top 5
   }
 
   loadDashboardData() {
@@ -73,6 +176,15 @@ export class DashboardComponent implements OnInit {
 
   formatDate(date: string): string {
     return new Date(date).toLocaleDateString('pt-BR');
+  }
+
+  formatTime(time: string): string {
+    return time;
+  }
+
+  getServiceName(serviceId: number): string {
+    // Para funcionários, podemos buscar o nome do serviço se necessário
+    return `Serviço #${serviceId}`;
   }
 
   getGrowthColor(growth: number): string {
@@ -124,19 +236,43 @@ export class DashboardComponent implements OnInit {
       }
       if (this.selectedPeriod === 'month' || this.selectedPeriod === 'week') {
         // Format: YYYY-MM-DD
-        const date = new Date(label);
-        return date.toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: 'short',
-        });
+        // Parse manualmente e formatar diretamente para evitar problemas de timezone
+        const [year, month, day] = label.split('-').map(Number);
+        const months = [
+          'jan',
+          'fev',
+          'mar',
+          'abr',
+          'mai',
+          'jun',
+          'jul',
+          'ago',
+          'set',
+          'out',
+          'nov',
+          'dez',
+        ];
+        return `${day.toString().padStart(2, '0')} de ${months[month - 1]}.`;
       }
       if (this.selectedPeriod === 'year') {
         // Format: YYYY-MM
-        const date = new Date(label + '-01');
-        return date.toLocaleDateString('pt-BR', {
-          month: 'short',
-          year: 'numeric',
-        });
+        // Parse manualmente e formatar diretamente para evitar problemas de timezone
+        const [year, month] = label.split('-').map(Number);
+        const months = [
+          'jan',
+          'fev',
+          'mar',
+          'abr',
+          'mai',
+          'jun',
+          'jul',
+          'ago',
+          'set',
+          'out',
+          'nov',
+          'dez',
+        ];
+        return `${months[month - 1]} ${year}`;
       }
     } catch (e) {
       // Fallback to original label if parsing fails

@@ -38,6 +38,8 @@ export interface Scheduling {
   scheduled_time: string;
   service_id: number;
   establishment_id: number;
+  client_name: string;
+  status?: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   created_at?: string;
   updated_at?: string;
   service?: {

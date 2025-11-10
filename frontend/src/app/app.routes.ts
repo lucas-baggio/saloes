@@ -46,6 +46,7 @@ export const routes: Routes = [
           import('./components/establishments/establishments.component').then(
             (m) => m.EstablishmentsComponent
           ),
+        canActivate: [ownerGuard],
       },
       {
         path: 'services',
@@ -53,6 +54,7 @@ export const routes: Routes = [
           import('./components/services/services.component').then(
             (m) => m.ServicesComponent
           ),
+        canActivate: [ownerGuard],
       },
       {
         path: 'schedulings',
