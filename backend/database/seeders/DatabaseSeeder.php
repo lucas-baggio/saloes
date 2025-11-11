@@ -16,6 +16,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call([
+            PlanSeeder::class,
+        ]);
+
         User::factory()->create([
             'name' => 'Administrador',
             'email' => 'admin@example.com',

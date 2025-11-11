@@ -5,6 +5,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EstablishmentController;
 use App\Http\Controllers\HealthCheckController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SchedulingController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SubServiceController;
@@ -37,5 +39,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('services', ServiceController::class);
     Route::apiResource('sub-services', SubServiceController::class);
     Route::apiResource('schedulings', SchedulingController::class);
+
+    // Planos
+    Route::get('plans', [PlanController::class, 'index']);
+    Route::get('plans/{plan}', [PlanController::class, 'show']);
+    Route::get('plans/current', [PlanController::class, 'current']);
+    Route::post('plans/subscribe', [PlanController::class, 'subscribe']);
+    Route::post('plans/cancel', [PlanController::class, 'cancel']);
+    Route::post('plans', [PlanController::class, 'store']); // Criar plano (para desenvolvimento)
+
+    // Pagamentos
+    Route::post('payments/process', [PaymentController::class, 'process']);
+    Route::get('payments/{paymentId}/status', [PaymentController::class, 'getStatus']);
 });
+
+// Webhook do Mercado Pago (sem autenticação)
+Route::post('payments/webhook', [PaymentController::class, 'webhook']);
 

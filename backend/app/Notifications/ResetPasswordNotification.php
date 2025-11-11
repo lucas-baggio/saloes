@@ -3,9 +3,9 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 
 class ResetPasswordNotification extends Notification
 {
@@ -35,11 +35,27 @@ class ResetPasswordNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-            ->subject('Redefinição de Senha - Salões')
-            ->view('emails.reset-password', [
-                'resetUrl' => $this->resetUrl,
+        Log::info('ResetPasswordNotification::toMail chamado', [
+            'email' => $notifiable->email,
+            'reset_url' => $this->resetUrl,
+        ]);
+
+        try {
+            $mail = (new MailMessage)
+                ->subject('Redefinição de Senha - Salões')
+                ->view('emails.reset-password', [
+                    'resetUrl' => $this->resetUrl,
+                ]);
+
+            Log::info('MailMessage criado com sucesso');
+            return $mail;
+        } catch (\Exception $e) {
+            Log::error('Erro ao criar MailMessage', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
+            throw $e;
+        }
     }
 
     /**
