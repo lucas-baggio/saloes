@@ -350,6 +350,10 @@ class MercadoPagoService
                 $accessToken = config('services.mercadopago.access_token');
                 $url = 'https://api.mercadopago.com/v1/payments';
 
+                // Gera uma chave de idempotência única para este pagamento
+                // Usa o ID do pagamento + timestamp para garantir unicidade
+                $idempotencyKey = 'payment_' . $payment->id . '_' . time() . '_' . uniqid();
+
                 $ch = curl_init($url);
                 curl_setopt_array($ch, [
                     CURLOPT_POST => true,
@@ -357,6 +361,7 @@ class MercadoPagoService
                     CURLOPT_HTTPHEADER => [
                         'Content-Type: application/json',
                         'Authorization: Bearer ' . $accessToken,
+                        'X-Idempotency-Key: ' . $idempotencyKey, // Header obrigatório para idempotência
                     ],
                     CURLOPT_POSTFIELDS => json_encode($paymentRequest),
                 ]);
