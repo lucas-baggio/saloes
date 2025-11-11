@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, finalize } from 'rxjs';
 import { ApiService } from './api.service';
 import {
   AuthResponse,
@@ -34,7 +34,8 @@ export class AuthService {
 
   logout(): Observable<any> {
     return this.api.post('auth/logout', {}).pipe(
-      tap(() => {
+      finalize(() => {
+        // Always clear localStorage, even on error
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       })
@@ -51,7 +52,14 @@ export class AuthService {
 
   getCurrentUser(): User | null {
     const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (!userStr) {
+      return null;
+    }
+    try {
+      return JSON.parse(userStr);
+    } catch (e) {
+      return null;
+    }
   }
 
   getToken(): string | null {
