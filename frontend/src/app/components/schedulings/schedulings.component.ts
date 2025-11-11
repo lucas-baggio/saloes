@@ -25,6 +25,7 @@ import { AuthService } from '../../services/auth.service';
 export class SchedulingsComponent implements OnInit {
   schedulings: Scheduling[] = [];
   filteredSchedulings: Scheduling[] = [];
+  allFilteredSchedulings: Scheduling[] = []; // Todos os agendamentos filtrados (antes da paginação)
   services: Service[] = [];
   establishments: Establishment[] = [];
   filteredServices: Service[] = [];
@@ -33,6 +34,7 @@ export class SchedulingsComponent implements OnInit {
   editingId: number | null = null;
   form: FormGroup;
   user: any = null;
+  isEmailVerified = false;
 
   // Filtros
   searchTerm = '';
@@ -40,6 +42,24 @@ export class SchedulingsComponent implements OnInit {
   filterServiceId = '';
   filterEstablishmentId = '';
   filterStatus = '';
+
+  // Paginação
+  currentPage = 1;
+  itemsPerPage = 10;
+  totalPages = 1;
+
+  // Ordenação
+  sortField: 'date' | 'client' | 'service' | 'status' = 'date';
+  sortDirection: 'asc' | 'desc' = 'desc';
+
+  // Histórico de ações
+  actionHistory: Array<{
+    id: number;
+    action: string;
+    description: string;
+    timestamp: Date;
+  }> = [];
+  showHistory = false;
 
   constructor(
     private schedulingService: SchedulingService,
@@ -62,6 +82,7 @@ export class SchedulingsComponent implements OnInit {
 
   ngOnInit() {
     this.user = this.authService.getCurrentUser();
+    this.isEmailVerified = !!this.user?.email_verified_at;
     this.loadSchedulings();
 
     // Funcionários não precisam carregar estabelecimentos (não podem selecionar)
@@ -88,19 +109,11 @@ export class SchedulingsComponent implements OnInit {
         this.schedulings = Array.isArray(schedulingsData)
           ? schedulingsData
           : [];
-        // Aplicar filtros e forçar detecção de mudanças
+        // Aplicar filtros
         this.applyFilters();
-        console.log('📊 Após carregar:', {
-          schedulings: this.schedulings.length,
-          filtered: this.filteredSchedulings.length,
-          loading: this.loading,
-          showForm: this.showForm,
-        });
         this.loading = false;
         // Forçar detecção de mudanças após atualizar os dados
-        setTimeout(() => {
-          this.cdr.detectChanges();
-        }, 0);
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('❌ Erro ao carregar agendamentos:', err);
@@ -184,22 +197,88 @@ export class SchedulingsComponent implements OnInit {
       );
     }
 
-    // Ordenar por data e hora (mais recentes primeiro)
-    filtered.sort((a, b) => {
-      try {
-        const dateA = new Date(
-          `${a.scheduled_date}T${a.scheduled_time || '00:00'}`
-        );
-        const dateB = new Date(
-          `${b.scheduled_date}T${b.scheduled_time || '00:00'}`
-        );
-        return dateB.getTime() - dateA.getTime();
-      } catch (e) {
-        return 0;
-      }
-    });
+    // Aplicar ordenação
+    this.sortSchedulings(filtered);
 
-    this.filteredSchedulings = filtered;
+    // Salvar todos os itens filtrados (antes da paginação)
+    this.allFilteredSchedulings = filtered;
+
+    // Calcular total de itens filtrados (antes da paginação)
+    const totalFiltered = filtered.length;
+
+    // Calcular paginação
+    this.totalPages = Math.ceil(totalFiltered / this.itemsPerPage) || 1;
+    if (this.currentPage > this.totalPages && this.totalPages > 0) {
+      this.currentPage = 1;
+    }
+
+    // Aplicar paginação
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    this.filteredSchedulings = filtered.slice(startIndex, endIndex);
+  }
+
+  sortSchedulings(schedulings: Scheduling[]) {
+    schedulings.sort((a, b) => {
+      let comparison = 0;
+
+      switch (this.sortField) {
+        case 'date':
+          try {
+            const dateA = new Date(
+              `${a.scheduled_date}T${a.scheduled_time || '00:00'}`
+            );
+            const dateB = new Date(
+              `${b.scheduled_date}T${b.scheduled_time || '00:00'}`
+            );
+            comparison = dateA.getTime() - dateB.getTime();
+          } catch (e) {
+            comparison = 0;
+          }
+          break;
+        case 'client':
+          const clientA = (a.client_name || '').toLowerCase();
+          const clientB = (b.client_name || '').toLowerCase();
+          comparison = clientA.localeCompare(clientB);
+          break;
+        case 'service':
+          const serviceA = (a.service?.name || '').toLowerCase();
+          const serviceB = (b.service?.name || '').toLowerCase();
+          comparison = serviceA.localeCompare(serviceB);
+          break;
+        case 'status':
+          const statusA = (a.status || 'pending').toLowerCase();
+          const statusB = (b.status || 'pending').toLowerCase();
+          comparison = statusA.localeCompare(statusB);
+          break;
+      }
+
+      return this.sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }
+
+  changeSort(field: 'date' | 'client' | 'service' | 'status') {
+    if (this.sortField === field) {
+      // Se já está ordenando por este campo, inverte a direção
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      // Se é um novo campo, define como descendente por padrão
+      this.sortField = field;
+      this.sortDirection = 'desc';
+    }
+    this.currentPage = 1; // Resetar para primeira página
+    this.applyFilters();
+  }
+
+  changePage(page: number) {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.applyFilters();
+    }
+  }
+
+  get paginatedSchedulings(): Scheduling[] {
+    return this.filteredSchedulings;
   }
 
   onSearchChange() {
@@ -247,6 +326,14 @@ export class SchedulingsComponent implements OnInit {
   }
 
   openForm(scheduling?: Scheduling) {
+    if (!this.isEmailVerified) {
+      this.alertService.warning(
+        'Email não verificado',
+        'Você precisa verificar seu email para criar ou editar agendamentos.'
+      );
+      return;
+    }
+
     const user = this.authService.getCurrentUser();
 
     // Recarregar serviços para garantir que serviços recém-criados apareçam
@@ -331,6 +418,27 @@ export class SchedulingsComponent implements OnInit {
     }
   }
 
+  onDateChange() {
+    // Quando a data mudar, validar se a hora ainda é válida
+    // Se a data selecionada for hoje, atualizar o minTime
+    const selectedDate = this.form.value.scheduled_date;
+    if (selectedDate) {
+      const today = new Date();
+      const selected = new Date(selectedDate + 'T00:00:00');
+      const isToday = selected.toDateString() === today.toDateString();
+
+      if (isToday) {
+        const currentTime = this.minTime;
+        const selectedTime = this.form.value.scheduled_time;
+
+        // Se a hora selecionada for menor que a hora mínima, limpar
+        if (selectedTime && selectedTime < currentTime) {
+          this.form.patchValue({ scheduled_time: '' });
+        }
+      }
+    }
+  }
+
   filterServicesByEstablishment(establishmentId: number | string) {
     const user = this.authService.getCurrentUser();
 
@@ -362,21 +470,53 @@ export class SchedulingsComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
+  get minDate(): string {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  get minTime(): string {
+    const today = new Date();
+    const selectedDate = this.form.value.scheduled_date;
+
+    if (selectedDate) {
+      const selected = new Date(selectedDate + 'T00:00:00');
+      const isToday = selected.toDateString() === today.toDateString();
+
+      if (isToday) {
+        const hours = String(today.getHours()).padStart(2, '0');
+        const minutes = String(today.getMinutes() + 1).padStart(2, '0'); // +1 minuto para evitar conflito
+        return `${hours}:${minutes}`;
+      }
+    }
+
+    return '00:00';
+  }
+
   onSubmit() {
     if (this.form.valid) {
+      // A validação de data/hora no passado é feita no backend
+      // Removida validação do frontend para evitar problemas de timezone
+
+      const scheduledDate = this.form.value.scheduled_date;
+      const scheduledTime = this.form.value.scheduled_time;
+
       this.loading = true;
       // O input type="time" retorna no formato HH:mm, que é exatamente o que o backend espera (H:i)
       // Garantir que não tenha segundos
-      let scheduledTime = this.form.value.scheduled_time;
-      if (scheduledTime && scheduledTime.includes(':')) {
+      let timeValue = scheduledTime;
+      if (timeValue && timeValue.includes(':')) {
         // Remover segundos se houver (HH:mm:ss -> HH:mm)
-        const parts = scheduledTime.split(':');
-        scheduledTime = `${parts[0]}:${parts[1]}`;
+        const parts = timeValue.split(':');
+        timeValue = `${parts[0]}:${parts[1]}`;
       }
 
       const data = {
-        scheduled_date: this.form.value.scheduled_date,
-        scheduled_time: scheduledTime,
+        scheduled_date: scheduledDate,
+        scheduled_time: timeValue,
         establishment_id: Number(this.form.value.establishment_id),
         service_id: Number(this.form.value.service_id),
         client_name: this.form.value.client_name,
@@ -389,6 +529,15 @@ export class SchedulingsComponent implements OnInit {
 
       request.subscribe({
         next: () => {
+          const action = this.editingId ? 'atualizado' : 'criado';
+          const schedulingId = this.editingId || Date.now(); // Usar timestamp temporário se for criação
+          this.addToHistory(
+            schedulingId,
+            action === 'criado' ? 'create' : 'update',
+            `Agendamento ${action === 'criado' ? 'criado' : 'atualizado'}: ${
+              this.form.value.client_name
+            } - ${this.formatDate(this.form.value.scheduled_date)}`
+          );
           this.alertService.success(
             'Sucesso!',
             this.editingId
@@ -420,6 +569,16 @@ export class SchedulingsComponent implements OnInit {
           this.loading = true;
           this.schedulingService.delete(id).subscribe({
             next: () => {
+              const scheduling = this.schedulings.find((s) => s.id === id);
+              this.addToHistory(
+                id,
+                'delete',
+                `Agendamento excluído: ${
+                  scheduling?.client_name || 'Cliente desconhecido'
+                } - ${
+                  scheduling ? this.formatDate(scheduling.scheduled_date) : ''
+                }`
+              );
               this.alertService.success(
                 'Agendamento excluído',
                 'O agendamento foi excluído com sucesso.'
@@ -439,13 +598,74 @@ export class SchedulingsComponent implements OnInit {
     return new Date(date).toLocaleDateString('pt-BR');
   }
 
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  }
+
+  addToHistory(id: number, action: string, description: string) {
+    this.actionHistory.unshift({
+      id: this.actionHistory.length + 1,
+      action,
+      description,
+      timestamp: new Date(),
+    });
+    // Manter apenas os últimos 50 registros
+    if (this.actionHistory.length > 50) {
+      this.actionHistory = this.actionHistory.slice(0, 50);
+    }
+  }
+
+  getActionIcon(action: string): string {
+    const icons: { [key: string]: string } = {
+      create: 'M12 4v16m8-8H4',
+      update:
+        'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+      delete:
+        'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+      status_change: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    };
+    return (
+      icons[action] ||
+      'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+    );
+  }
+
+  getActionColor(action: string): string {
+    const colors: { [key: string]: string } = {
+      create: 'text-green-600 bg-green-100',
+      update: 'text-blue-600 bg-blue-100',
+      delete: 'text-red-600 bg-red-100',
+      status_change: 'text-purple-600 bg-purple-100',
+    };
+    return colors[action] || 'text-gray-600 bg-gray-100';
+  }
+
+  formatHistoryTime(date: Date): string {
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (minutes < 1) return 'Agora';
+    if (minutes < 60) return `${minutes} min atrás`;
+    if (hours < 24) return `${hours} h atrás`;
+    if (days < 7) return `${days} dias atrás`;
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
   getServiceName(serviceId: number): string {
     const service = this.services.find((s) => s.id === serviceId);
     return service ? service.name : 'Serviço não encontrado';
-  }
-
-  trackBySchedulingId(index: number, scheduling: Scheduling): number {
-    return scheduling.id;
   }
 
   getStatusLabel(status?: string): string {
@@ -456,6 +676,82 @@ export class SchedulingsComponent implements OnInit {
       cancelled: 'Cancelado',
     };
     return labels[status || 'pending'] || 'Pendente';
+  }
+
+  // Expose Math to template
+  Math = Math;
+
+  exportToCSV() {
+    if (this.allFilteredSchedulings.length === 0) {
+      this.alertService.warning(
+        'Nenhum dado para exportar',
+        'Não há agendamentos para exportar com os filtros aplicados.'
+      );
+      return;
+    }
+
+    // Preparar dados para CSV
+    const headers = [
+      'ID',
+      'Data',
+      'Hora',
+      'Cliente',
+      'Serviço',
+      'Estabelecimento',
+      'Status',
+      'Valor',
+    ];
+
+    const rows = this.allFilteredSchedulings.map((s) => {
+      const service = this.services.find((sv) => sv.id === s.service_id);
+      const establishment = this.establishments.find(
+        (e) => e.id === s.establishment_id
+      );
+      const price = service?.price || 0;
+
+      return [
+        s.id,
+        this.formatDate(s.scheduled_date),
+        s.scheduled_time,
+        s.client_name || '',
+        service?.name || 'Serviço não encontrado',
+        establishment?.name || 'Estabelecimento não encontrado',
+        this.getStatusLabel(s.status),
+        this.formatCurrency(price),
+      ];
+    });
+
+    // Criar conteúdo CSV
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+      ),
+    ].join('\n');
+
+    // Adicionar BOM para Excel reconhecer UTF-8
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
+
+    // Criar link de download
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute(
+      'download',
+      `agendamentos_${new Date().toISOString().split('T')[0]}.csv`
+    );
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    this.alertService.success(
+      'Exportação concluída',
+      `${this.allFilteredSchedulings.length} agendamento(s) exportado(s) com sucesso.`
+    );
   }
 
   getStatusColor(status?: string): string {
@@ -484,6 +780,14 @@ export class SchedulingsComponent implements OnInit {
           this.loading = true;
           this.schedulingService.update(id, { status }).subscribe({
             next: () => {
+              const scheduling = this.schedulings.find((s) => s.id === id);
+              this.addToHistory(
+                id,
+                'status_change',
+                `Status alterado para "${this.getStatusLabel(status)}": ${
+                  scheduling?.client_name || 'Cliente desconhecido'
+                }`
+              );
               this.alertService.success(
                 'Status atualizado',
                 'O status do agendamento foi atualizado com sucesso.'

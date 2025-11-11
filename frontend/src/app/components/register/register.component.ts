@@ -8,6 +8,7 @@ import {
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { AlertService } from '../../services/alert.service';
 
 @Component({
   selector: 'app-register',
@@ -24,7 +25,8 @@ export class RegisterComponent {
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private alertService: AlertService
   ) {
     this.registerForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(3)]],
@@ -40,13 +42,22 @@ export class RegisterComponent {
       this.error = '';
 
       this.authService.register(this.registerForm.value).subscribe({
-        next: () => {
-          this.router.navigate(['/dashboard']);
+        next: (response: any) => {
+          this.alertService.success(
+            'Conta criada!',
+            response.message ||
+              'Verifique seu email para ativar sua conta. Enviamos um link de verificação.'
+          );
+          // Redirecionar para login após mostrar mensagem
+          setTimeout(() => {
+            this.router.navigate(['/login']);
+          }, 2000);
         },
         error: (err) => {
           this.error =
             err.error?.message || 'Erro ao criar conta. Tente novamente.';
           this.loading = false;
+          this.alertService.validationError(err);
         },
       });
     }

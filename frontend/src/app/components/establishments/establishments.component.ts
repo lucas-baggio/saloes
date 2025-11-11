@@ -24,6 +24,7 @@ export class EstablishmentsComponent implements OnInit {
   editingId: number | null = null;
   form: FormGroup;
   error: string = '';
+  isEmailVerified = false;
 
   constructor(
     private establishmentService: EstablishmentService,
@@ -37,6 +38,8 @@ export class EstablishmentsComponent implements OnInit {
   }
 
   ngOnInit() {
+    const user = this.authService.getCurrentUser();
+    this.isEmailVerified = !!user?.email_verified_at;
     this.loadEstablishments();
   }
 
@@ -54,6 +57,13 @@ export class EstablishmentsComponent implements OnInit {
   }
 
   openForm(establishment?: Establishment) {
+    if (!this.isEmailVerified) {
+      alert(
+        'Você precisa verificar seu email para criar ou editar estabelecimentos.'
+      );
+      return;
+    }
+
     if (establishment) {
       this.editingId = establishment.id;
       this.form.patchValue({

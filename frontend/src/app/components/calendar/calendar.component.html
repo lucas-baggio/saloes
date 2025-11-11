@@ -1,0 +1,358 @@
+<div class="px-4 sm:px-6 lg:px-8">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Calendário</h1>
+      <p class="mt-2 text-sm text-gray-600">Visualize seus agendamentos</p>
+    </div>
+
+    <!-- Controls -->
+    <div class="flex items-center gap-2">
+      <button
+        (click)="previousMonth()"
+        class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+        title="Mês anterior"
+      >
+        <svg
+          class="w-5 h-5 text-gray-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </button>
+      <button
+        (click)="goToToday()"
+        class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
+      >
+        Hoje
+      </button>
+      <button
+        (click)="nextMonth()"
+        class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+        title="Próximo mês"
+      >
+        <svg
+          class="w-5 h-5 text-gray-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Current Month/Year -->
+  <div class="text-center mb-6">
+    <h2 class="text-2xl font-semibold text-gray-800">
+      {{ getCurrentMonthYear() }}
+    </h2>
+  </div>
+
+  <!-- Loading -->
+  @if (loading) {
+  <div class="text-center py-12">
+    <div
+      class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
+    ></div>
+    <p class="mt-2 text-gray-600">Carregando agendamentos...</p>
+  </div>
+  } @else {
+  <!-- Calendar Grid -->
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <!-- Week Days Header -->
+    <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
+      @for (day of weekDays; track day) {
+      <div class="p-3 text-center text-sm font-semibold text-gray-700">
+        {{ day }}
+      </div>
+      }
+    </div>
+
+    <!-- Calendar Days -->
+    <div class="grid grid-cols-7">
+      @for (day of calendarDays; track day.date.getTime()) {
+      <div
+        class="min-h-[100px] sm:min-h-[120px] border-r border-b border-gray-200 p-2 transition-colors hover:bg-gray-50 cursor-pointer"
+        [class.bg-blue-50]="day.isToday"
+        [class.bg-gray-50]="!day.isCurrentMonth"
+        [class.border-primary-500]="selectedDate && day.date.getTime() === selectedDate.getTime()"
+        [class.border-2]="selectedDate && day.date.getTime() === selectedDate.getTime()"
+        (click)="selectDate(day)"
+      >
+        <!-- Day Number -->
+        <div
+          class="text-sm font-medium mb-1"
+          [class.text-gray-400]="!day.isCurrentMonth"
+          [class.text-primary-600]="day.isToday"
+          [class.text-gray-900]="day.isCurrentMonth && !day.isToday"
+        >
+          {{ day.day }}
+        </div>
+
+        <!-- Schedulings -->
+        <div class="space-y-1">
+          @for (scheduling of day.schedulings.slice(0, 3); track scheduling.id) {
+          <div
+            class="text-xs px-2 py-1 rounded border cursor-pointer transition-colors hover:opacity-80"
+            [ngClass]="getStatusColor(scheduling.status || 'pending')"
+            (click)="selectScheduling(scheduling); $event.stopPropagation()"
+            [title]="scheduling.client_name + ' - ' + formatTime(scheduling.scheduled_time)"
+          >
+            <div class="font-medium truncate">
+              {{ formatTime(scheduling.scheduled_time) }}
+            </div>
+            <div class="truncate">{{ scheduling.client_name }}</div>
+          </div>
+          }
+          @if (day.schedulings.length > 3) {
+          <div
+            class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 border border-gray-300"
+          >
+            +{{ day.schedulings.length - 3 }} mais
+          </div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+  }
+
+  <!-- Selected Date Details -->
+  @if (selectedDate) {
+  <div class="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-semibold text-gray-900">
+        Agendamentos de
+        {{
+          selectedDate.toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        }}
+      </h3>
+      <button
+        (click)="selectedDate = null; selectedScheduling = null"
+        class="text-gray-400 hover:text-gray-600"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    </div>
+
+    @if (getSchedulingsForDate(selectedDate).length === 0) {
+    <p class="text-gray-500 text-center py-8">
+      Nenhum agendamento para este dia
+    </p>
+    } @else {
+    <div class="space-y-3">
+      @for (scheduling of getSchedulingsForDate(selectedDate); track scheduling.id) {
+      <div
+        class="p-4 rounded-lg border-2 transition-all cursor-pointer hover:shadow-md"
+        [class.border-primary-500]="selectedScheduling?.id === scheduling.id"
+        [class.border-gray-200]="selectedScheduling?.id !== scheduling.id"
+        (click)="selectScheduling(scheduling, $event)"
+      >
+        <div class="flex justify-between items-start">
+          <div class="flex-1">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="text-lg font-semibold text-gray-900">
+                {{ formatTime(scheduling.scheduled_time) }}
+              </span>
+              <span
+                class="px-2 py-1 text-xs font-medium rounded border"
+                [ngClass]="getStatusColor(scheduling.status || 'pending')"
+              >
+                {{ getStatusLabel(scheduling.status || 'pending') }}
+              </span>
+            </div>
+            <h4 class="text-base font-medium text-gray-900 mb-1">
+              {{ scheduling.client_name }}
+            </h4>
+            @if (scheduling.service) {
+            <p class="text-sm text-gray-600">
+              {{ scheduling.service.name }}
+            </p>
+            }
+            @if (scheduling.establishment) {
+            <p class="text-xs text-gray-500 mt-1">
+              {{ scheduling.establishment.name }}
+            </p>
+            }
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+
+  <!-- Modal de Detalhes do Agendamento -->
+  @if (selectedScheduling) {
+  <div
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+    (click)="closeSchedulingDetails()"
+  >
+    <div
+      class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+      (click)="$event.stopPropagation()"
+    >
+      <!-- Header -->
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h3 class="text-xl font-bold text-gray-900">Detalhes do Agendamento</h3>
+          <p class="text-sm text-gray-500 mt-1">
+            {{
+              selectedScheduling.scheduled_date
+                | date: 'EEEE, dd \'de\' MMMM \'de\' yyyy'
+                : 'pt-BR'
+            }}
+          </p>
+        </div>
+        <button
+          (click)="closeSchedulingDetails()"
+          class="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="space-y-4">
+        <!-- Horário e Status -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="bg-primary-100 rounded-lg p-3">
+              <svg
+                class="w-6 h-6 text-primary-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">Horário</p>
+              <p class="text-2xl font-bold text-gray-900">
+                {{ formatTime(selectedScheduling.scheduled_time) }}
+              </p>
+            </div>
+          </div>
+          <span
+            class="px-3 py-1 text-sm font-medium rounded-full border"
+            [ngClass]="getStatusColor(selectedScheduling.status || 'pending')"
+          >
+            {{ getStatusLabel(selectedScheduling.status || 'pending') }}
+          </span>
+        </div>
+
+        <!-- Cliente -->
+        <div class="border-t border-gray-200 pt-4">
+          <p class="text-sm text-gray-500 mb-1">Cliente</p>
+          <p class="text-lg font-semibold text-gray-900">
+            {{ selectedScheduling.client_name }}
+          </p>
+        </div>
+
+        <!-- Serviço -->
+        @if (selectedScheduling.service) {
+        <div class="border-t border-gray-200 pt-4">
+          <p class="text-sm text-gray-500 mb-1">Serviço</p>
+          <p class="text-base font-medium text-gray-900">
+            {{ selectedScheduling.service.name }}
+          </p>
+          @if (selectedScheduling.service.price) {
+          <p class="text-sm text-primary-600 font-semibold mt-1">
+            {{ formatCurrency(selectedScheduling.service.price) }}
+          </p>
+          }
+        </div>
+        }
+
+        <!-- Estabelecimento -->
+        @if (selectedScheduling.establishment) {
+        <div class="border-t border-gray-200 pt-4">
+          <p class="text-sm text-gray-500 mb-1">Estabelecimento</p>
+          <p class="text-base font-medium text-gray-900">
+            {{ selectedScheduling.establishment.name }}
+          </p>
+        </div>
+        }
+
+        <!-- Funcionário Responsável -->
+        @if (selectedScheduling.service?.user) {
+        <div class="border-t border-gray-200 pt-4">
+          <p class="text-sm text-gray-500 mb-1">Funcionário Responsável</p>
+          <p class="text-base font-medium text-gray-900">
+            {{ selectedScheduling.service.user.name }}
+          </p>
+        </div>
+        }
+
+        <!-- Informações Adicionais -->
+        @if (selectedScheduling.service?.description) {
+        <div class="border-t border-gray-200 pt-4">
+          <p class="text-sm text-gray-500 mb-1">Descrição do Serviço</p>
+          <p class="text-sm text-gray-700">
+            {{ selectedScheduling.service.description }}
+          </p>
+        </div>
+        }
+      </div>
+
+      <!-- Actions -->
+      <div class="mt-6 pt-4 border-t border-gray-200 flex gap-3">
+        <button
+          (click)="closeSchedulingDetails()"
+          class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+        >
+          Fechar
+        </button>
+        <a
+          [routerLink]="['/schedulings']"
+          [queryParams]="{ edit: selectedScheduling.id }"
+          class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium text-center"
+        >
+          Editar
+        </a>
+      </div>
+    </div>
+  </div>
+  }
+</div>

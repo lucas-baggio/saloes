@@ -32,6 +32,7 @@ export class ServicesComponent implements OnInit {
   editingId: number | null = null;
   form: FormGroup;
   subServices: SubService[] = [];
+  isEmailVerified = false;
 
   constructor(
     private serviceService: ServiceService,
@@ -51,6 +52,8 @@ export class ServicesComponent implements OnInit {
   }
 
   ngOnInit() {
+    const user = this.authService.getCurrentUser();
+    this.isEmailVerified = !!user?.email_verified_at;
     this.loadServices();
     this.loadEstablishments();
     this.loadEmployees();
@@ -90,6 +93,14 @@ export class ServicesComponent implements OnInit {
   }
 
   openForm(service?: Service) {
+    if (!this.isEmailVerified) {
+      this.alertService.warning(
+        'Email não verificado',
+        'Você precisa verificar seu email para criar ou editar serviços.'
+      );
+      return;
+    }
+
     if (service) {
       this.editingId = service.id;
       this.form.patchValue({
@@ -116,7 +127,10 @@ export class ServicesComponent implements OnInit {
   }
 
   onSubmit() {
-    if (this.form.valid && (this.form.value.price || this.subServices.length > 0)) {
+    if (
+      this.form.valid &&
+      (this.form.value.price || this.subServices.length > 0)
+    ) {
       this.loading = true;
       const data: any = {
         name: this.form.value.name,

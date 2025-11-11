@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Scheduling;
 use App\Models\Service;
 use App\Models\Establishment;
+use App\Models\User;
+use App\Notifications\SchedulingConfirmationNotification;
+use App\Notifications\StatusChangeNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
@@ -129,12 +132,22 @@ class SchedulingController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        // Validar horário único e conflitos
         $this->validateUniqueSlot($data);
 
         $scheduling = Scheduling::create($data)->load([
-            'service:id,name,establishment_id',
+            'service:id,name,establishment_id,price,description',
+            'service.user:id,name,email',
             'establishment:id,name',
         ]);
+
+        $establishment = Establishment::find($data['establishment_id']);
+        if ($establishment && $establishment->owner_id) {
+            $owner = User::find($establishment->owner_id);
+            if ($owner) {
+                $owner->notify(new SchedulingConfirmationNotification($scheduling));
+            }
+        }
 
         return response()->json($scheduling, Response::HTTP_CREATED);
     }
@@ -244,12 +257,29 @@ class SchedulingController extends Controller
 
         $this->validateUniqueSlot($mergedData, $scheduling->id);
 
-        $scheduling->update($data);
+        // Capturar status antigo antes de atualizar
+        $oldStatus = $scheduling->status;
 
-        return response()->json($scheduling->refresh()->load([
-            'service:id,name,establishment_id',
-            'establishment:id,name',
-        ]));
+        $scheduling->update($data);
+        $scheduling->refresh()->load([
+            'service:id,name,establishment_id,price,description',
+            'service.user:id,name,email',
+            'establishment:id,name,owner_id',
+        ]);
+
+        // Enviar notificação de mudança de status (se mudou)
+        if (isset($data['status']) && $data['status'] !== $oldStatus) {
+            // Enviar para o proprietário do estabelecimento
+            $establishment = $scheduling->establishment;
+            if ($establishment && $establishment->owner_id) {
+                $owner = User::find($establishment->owner_id);
+                if ($owner) {
+                    $owner->notify(new StatusChangeNotification($scheduling, $oldStatus, $data['status']));
+                }
+            }
+        }
+
+        return response()->json($scheduling);
     }
 
     public function destroy(Request $request, Scheduling $scheduling)
@@ -286,20 +316,87 @@ class SchedulingController extends Controller
 
     private function validateUniqueSlot(array $data, ?int $ignoreId = null): void
     {
-        Validator::make(
-            $data,
-            [
-                'scheduled_date' => [
-                    Rule::unique('schedulings')->where(fn ($query) => $query
-                        ->where('service_id', $data['service_id'])
-                        ->where('scheduled_time', $data['scheduled_time'])
-                    )->ignore($ignoreId),
-                ],
-            ],
-            [
-                'scheduled_date.unique' => 'Já existe um agendamento para este serviço neste horário.',
-            ]
-        )->validate();
+        // Verificar conflito exato (mesmo serviço, data e horário)
+        $exactConflict = Scheduling::where('scheduled_date', $data['scheduled_date'])
+            ->where('scheduled_time', $data['scheduled_time'])
+            ->where('service_id', $data['service_id'])
+            ->where('status', '!=', 'cancelled') // Ignorar agendamentos cancelados
+            ->when($ignoreId, fn($query) => $query->where('id', '!=', $ignoreId))
+            ->exists();
+
+        if ($exactConflict) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'scheduled_time' => ['Já existe um agendamento para este serviço neste horário.'],
+            ]);
+        }
+
+        // Verificar conflitos de sobreposição no mesmo estabelecimento/funcionário
+        // Assumindo duração padrão de 1 hora para serviços
+        $service = Service::find($data['service_id']);
+
+        // Extrair apenas a data (sem hora) antes de concatenar
+        $scheduledDateStr = $data['scheduled_date'];
+        if ($scheduledDateStr instanceof \Carbon\Carbon) {
+            $scheduledDateStr = $scheduledDateStr->format('Y-m-d');
+        } elseif (is_string($scheduledDateStr) && strpos($scheduledDateStr, ' ') !== false) {
+            // Se vier com hora, pegar apenas a data
+            $scheduledDateStr = explode(' ', $scheduledDateStr)[0];
+        }
+
+        // Garantir que scheduled_time seja apenas H:i (sem segundos)
+        $scheduledTimeStr = $data['scheduled_time'];
+        if (is_string($scheduledTimeStr) && substr_count($scheduledTimeStr, ':') > 1) {
+            $parts = explode(':', $scheduledTimeStr);
+            $scheduledTimeStr = $parts[0] . ':' . $parts[1];
+        }
+
+        $scheduledDateTime = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $scheduledDateStr . ' ' . $scheduledTimeStr);
+        $endDateTime = $scheduledDateTime->copy()->addHour(); // Duração padrão de 1 hora
+
+        // Buscar agendamentos que podem conflitar
+        $conflictingSchedulings = Scheduling::where('scheduled_date', $scheduledDateStr)
+            ->where('establishment_id', $data['establishment_id'])
+            ->where('status', '!=', 'cancelled')
+            ->when($ignoreId, fn($query) => $query->where('id', '!=', $ignoreId))
+            ->get();
+
+        foreach ($conflictingSchedulings as $existing) {
+            // Extrair apenas a data do agendamento existente
+            $existingDateStr = $existing->scheduled_date;
+            if ($existingDateStr instanceof \Carbon\Carbon) {
+                $existingDateStr = $existingDateStr->format('Y-m-d');
+            } elseif (is_string($existingDateStr) && strpos($existingDateStr, ' ') !== false) {
+                $existingDateStr = explode(' ', $existingDateStr)[0];
+            }
+
+            // Garantir que scheduled_time seja apenas H:i
+            $existingTimeStr = $existing->scheduled_time;
+            if (is_string($existingTimeStr) && substr_count($existingTimeStr, ':') > 1) {
+                $parts = explode(':', $existingTimeStr);
+                $existingTimeStr = $parts[0] . ':' . $parts[1];
+            }
+
+            $existingStart = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $existingDateStr . ' ' . $existingTimeStr);
+            $existingEnd = $existingStart->copy()->addHour(); // Duração padrão de 1 hora
+
+            // Verificar se há sobreposição de horários
+            if ($scheduledDateTime->lt($existingEnd) && $endDateTime->gt($existingStart)) {
+                // Se o serviço tem um funcionário atribuído, verificar conflito apenas para o mesmo funcionário
+                if ($service->user_id && $existing->service) {
+                    $existingService = Service::find($existing->service_id);
+                    if ($existingService && $existingService->user_id === $service->user_id) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'scheduled_time' => ['Este horário conflita com outro agendamento do mesmo funcionário.'],
+                        ]);
+                    }
+                } else {
+                    // Se não há funcionário específico, verificar conflito no estabelecimento
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'scheduled_time' => ['Este horário conflita com outro agendamento no estabelecimento.'],
+                    ]);
+                }
+            }
+        }
     }
 }
 

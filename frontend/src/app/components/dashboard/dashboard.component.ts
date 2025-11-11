@@ -1,4 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  AfterViewInit,
+  ViewChild,
+  ElementRef,
+  OnDestroy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
@@ -10,6 +17,9 @@ import {
 import { AuthService } from '../../services/auth.service';
 import { SchedulingService } from '../../services/scheduling.service';
 import { Scheduling } from '../../models/service.model';
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard',
@@ -18,7 +28,14 @@ import { Scheduling } from '../../models/service.model';
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('revenueChartCanvas')
+  revenueChartCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('servicesChartCanvas')
+  servicesChartCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('statusChartCanvas')
+  statusChartCanvas!: ElementRef<HTMLCanvasElement>;
+
   stats: DashboardStats | null = null;
   revenueChart: RevenueChart | null = null;
   topServices: TopService[] = [];
@@ -32,6 +49,10 @@ export class DashboardComponent implements OnInit {
   selectedPeriod = 'month';
   user: any = null;
   isEmployee = false;
+
+  private revenueChartInstance: Chart | null = null;
+  private servicesChartInstance: Chart | null = null;
+  private statusChartInstance: Chart | null = null;
 
   constructor(
     private dashboardService: DashboardService,
@@ -47,6 +68,23 @@ export class DashboardComponent implements OnInit {
       this.loadEmployeeDashboard();
     } else {
       this.loadDashboardData();
+    }
+  }
+
+  ngAfterViewInit() {
+    // Charts will be created after data loads
+  }
+
+  ngOnDestroy() {
+    // Destroy charts to prevent memory leaks
+    if (this.revenueChartInstance) {
+      this.revenueChartInstance.destroy();
+    }
+    if (this.servicesChartInstance) {
+      this.servicesChartInstance.destroy();
+    }
+    if (this.statusChartInstance) {
+      this.statusChartInstance.destroy();
     }
   }
 
@@ -151,13 +189,25 @@ export class DashboardComponent implements OnInit {
     this.dashboardService.getRevenueChart(this.selectedPeriod).subscribe({
       next: (data) => {
         this.revenueChart = data;
-        this.renderChart();
+        // Wait for view to be ready
+        setTimeout(() => this.createRevenueChart(), 100);
       },
     });
 
     this.dashboardService.getTopServices(this.selectedPeriod, 5).subscribe({
       next: (data) => {
         this.topServices = data;
+        // Wait for view to be ready
+        setTimeout(() => this.createServicesChart(), 100);
+      },
+    });
+
+    // Load schedulings for status chart
+    this.schedulingService.getAll().subscribe({
+      next: (data) => {
+        const schedulings = data.data || data || [];
+        // Wait for view to be ready
+        setTimeout(() => this.createStatusChart(schedulings), 100);
       },
     });
   }
@@ -199,25 +249,216 @@ export class DashboardComponent implements OnInit {
     return '→';
   }
 
-  renderChart() {
-    if (!this.revenueChart) return;
+  createRevenueChart() {
+    if (!this.revenueChart || !this.revenueChartCanvas) return;
 
-    // Simple bar chart using CSS
-    const maxRevenue = Math.max(...this.revenueChart.revenue, 1);
-    this.chartData = this.revenueChart.labels.map((label, index) => ({
-      label: this.formatChartLabel(label),
-      value: this.revenueChart!.revenue[index],
-      percentage: (this.revenueChart!.revenue[index] / maxRevenue) * 100,
-      count: this.revenueChart!.count[index],
-    }));
+    // Destroy existing chart
+    if (this.revenueChartInstance) {
+      this.revenueChartInstance.destroy();
+    }
+
+    const labels = this.revenueChart.labels.map((label) =>
+      this.formatChartLabel(label)
+    );
+
+    this.revenueChartInstance = new Chart(
+      this.revenueChartCanvas.nativeElement,
+      {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Receita (R$)',
+              data: this.revenueChart.revenue,
+              borderColor: 'rgb(59, 130, 246)',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              tension: 0.4,
+              fill: true,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const value = context.parsed.y ?? 0;
+                  return `Receita: ${this.formatCurrency(value)}`;
+                },
+              },
+            },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (value) => {
+                  return this.formatCurrency(value as number);
+                },
+              },
+            },
+          },
+        },
+      }
+    );
   }
 
-  chartData: Array<{
-    label: string;
-    value: number;
-    percentage: number;
-    count: number;
-  }> = [];
+  createServicesChart() {
+    if (
+      !this.topServices ||
+      this.topServices.length === 0 ||
+      !this.servicesChartCanvas
+    )
+      return;
+
+    // Destroy existing chart
+    if (this.servicesChartInstance) {
+      this.servicesChartInstance.destroy();
+    }
+
+    const labels = this.topServices.map((s) => s.name);
+    const revenues = this.topServices.map((s) => s.revenue);
+
+    this.servicesChartInstance = new Chart(
+      this.servicesChartCanvas.nativeElement,
+      {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Receita por Serviço (R$)',
+              data: revenues,
+              backgroundColor: [
+                'rgba(59, 130, 246, 0.8)',
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(245, 158, 11, 0.8)',
+                'rgba(239, 68, 68, 0.8)',
+                'rgba(139, 92, 246, 0.8)',
+              ],
+              borderColor: [
+                'rgb(59, 130, 246)',
+                'rgb(16, 185, 129)',
+                'rgb(245, 158, 11)',
+                'rgb(239, 68, 68)',
+                'rgb(139, 92, 246)',
+              ],
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false,
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const value = context.parsed.y ?? 0;
+                  return `Receita: ${this.formatCurrency(value)}`;
+                },
+              },
+            },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (value) => {
+                  return this.formatCurrency(value as number);
+                },
+              },
+            },
+          },
+        },
+      }
+    );
+  }
+
+  createStatusChart(schedulings: Scheduling[]) {
+    if (!this.statusChartCanvas) return;
+
+    // Destroy existing chart
+    if (this.statusChartInstance) {
+      this.statusChartInstance.destroy();
+    }
+
+    const statusCount: { [key: string]: number } = {
+      pending: 0,
+      confirmed: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+
+    schedulings.forEach((s: Scheduling) => {
+      const status = s.status || 'pending';
+      if (statusCount[status] !== undefined) {
+        statusCount[status]++;
+      }
+    });
+
+    const labels = ['Pendente', 'Confirmado', 'Concluído', 'Cancelado'];
+    const data = [
+      statusCount['pending'],
+      statusCount['confirmed'],
+      statusCount['completed'],
+      statusCount['cancelled'],
+    ];
+
+    this.statusChartInstance = new Chart(this.statusChartCanvas.nativeElement, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            data: data,
+            backgroundColor: [
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(16, 185, 129, 0.8)',
+              'rgba(239, 68, 68, 0.8)',
+            ],
+            borderColor: [
+              'rgb(245, 158, 11)',
+              'rgb(59, 130, 246)',
+              'rgb(16, 185, 129)',
+              'rgb(239, 68, 68)',
+            ],
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const total = data.reduce((a, b) => a + b, 0);
+                const percentage =
+                  total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                return `${context.label}: ${context.parsed} (${percentage}%)`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 
   formatChartLabel(label: string): string {
     // Format based on period - label comes as YYYY-MM-DD or YYYY-MM-DD HH:00 or YYYY-MM

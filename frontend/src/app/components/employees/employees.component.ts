@@ -26,6 +26,7 @@ export class EmployeesComponent implements OnInit {
   showForm = false;
   editingId: number | null = null;
   form: FormGroup;
+  isEmailVerified = false;
 
   constructor(
     private employeeService: EmployeeService,
@@ -43,6 +44,8 @@ export class EmployeesComponent implements OnInit {
   }
 
   ngOnInit() {
+    const user = this.authService.getCurrentUser();
+    this.isEmailVerified = !!user?.email_verified_at;
     this.loadEmployees();
     this.loadEstablishments();
   }
@@ -73,6 +76,14 @@ export class EmployeesComponent implements OnInit {
   }
 
   openForm(employee?: Employee) {
+    if (!this.isEmailVerified) {
+      this.alertService.warning(
+        'Email não verificado',
+        'Você precisa verificar seu email para criar ou editar funcionários.'
+      );
+      return;
+    }
+
     if (employee) {
       this.editingId = employee.id;
       this.form.patchValue({

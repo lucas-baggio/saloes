@@ -4,7 +4,16 @@
       <h1 class="text-3xl font-bold text-gray-900">Serviços</h1>
       <p class="mt-2 text-sm text-gray-600">Gerencie os serviços oferecidos</p>
     </div>
-    <button (click)="openForm()" class="btn btn-primary">+ Novo Serviço</button>
+    <button
+      (click)="openForm()"
+      class="btn btn-primary"
+      [disabled]="!isEmailVerified"
+      [title]="
+        !isEmailVerified ? 'Verifique seu email para criar serviços' : ''
+      "
+    >
+      + Novo Serviço
+    </button>
   </div>
 
   <!-- Form Modal -->
@@ -23,7 +32,9 @@
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Nome *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2"
+            >Nome *</label
+          >
           <input
             formControlName="name"
             class="input"
@@ -32,7 +43,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2"
+            >Descrição</label
+          >
           <textarea
             formControlName="description"
             class="input"
@@ -80,7 +93,8 @@
             </button>
           </div>
           <p class="text-xs text-gray-500 mb-3">
-            Adicione subserviços para compor este serviço. O preço total será calculado automaticamente.
+            Adicione subserviços para compor este serviço. O preço total será
+            calculado automaticamente.
           </p>
 
           <div *ngIf="subServices.length > 0" class="space-y-3 mb-3">
@@ -93,7 +107,7 @@
                   <input
                     type="text"
                     [(ngModel)]="subService.name"
-                    [ngModelOptions]="{standalone: true}"
+                    [ngModelOptions]="{ standalone: true }"
                     class="input text-sm"
                     placeholder="Nome (ex: Corte de cabelo)"
                   />
@@ -102,7 +116,7 @@
                   <input
                     type="text"
                     [(ngModel)]="subService.description"
-                    [ngModelOptions]="{standalone: true}"
+                    [ngModelOptions]="{ standalone: true }"
                     class="input text-sm"
                     placeholder="Descrição (opcional)"
                   />
@@ -111,7 +125,7 @@
                   <input
                     type="number"
                     [(ngModel)]="subService.price"
-                    [ngModelOptions]="{standalone: true}"
+                    [ngModelOptions]="{ standalone: true }"
                     class="input text-sm"
                     placeholder="Preço"
                     step="0.01"
@@ -125,7 +139,12 @@
                 class="text-red-600 hover:text-red-700 mt-1"
                 title="Remover"
               >
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -140,7 +159,9 @@
           <!-- Preço Total -->
           <div class="bg-primary-50 p-3 rounded-lg">
             <div class="flex justify-between items-center">
-              <span class="text-sm font-medium text-gray-700">Preço Total:</span>
+              <span class="text-sm font-medium text-gray-700"
+                >Preço Total:</span
+              >
               <span class="text-lg font-bold text-primary-600">
                 {{ formatPrice(getTotalPrice()) }}
               </span>
@@ -216,6 +237,8 @@
         <div class="flex space-x-2">
           <button
             (click)="openForm(service)"
+            [disabled]="!isEmailVerified"
+            [title]="!isEmailVerified ? 'Verifique seu email para editar' : ''"
             class="text-primary-600 hover:text-primary-700"
             title="Editar"
           >
@@ -257,12 +280,21 @@
       <p *ngIf="service.description" class="text-gray-600 text-sm mb-2">
         {{ service.description }}
       </p>
-      
+
       <!-- Subserviços -->
-      <div *ngIf="(service.sub_services && service.sub_services.length > 0) || (service.subServices && service.subServices.length > 0)" class="mb-3">
+      <div
+        *ngIf="
+          (service.sub_services && service.sub_services.length > 0) ||
+          (service.subServices && service.subServices.length > 0)
+        "
+        class="mb-3"
+      >
         <p class="text-xs font-medium text-gray-700 mb-1">Subserviços:</p>
         <ul class="text-xs text-gray-600 space-y-1">
-          <li *ngFor="let sub of (service.sub_services || service.subServices)" class="flex justify-between">
+          <li
+            *ngFor="let sub of service.sub_services || service.subServices"
+            class="flex justify-between"
+          >
             <span>{{ sub.name }}</span>
             <span class="font-medium">{{ formatPrice(sub.price) }}</span>
           </li>
@@ -279,7 +311,14 @@
 
     <div *ngIf="services.length === 0" class="col-span-full text-center py-12">
       <p class="text-gray-500">Nenhum serviço cadastrado</p>
-      <button (click)="openForm()" class="btn btn-primary mt-4">
+      <button
+        (click)="openForm()"
+        class="btn btn-primary mt-4"
+        [disabled]="!isEmailVerified"
+        [title]="
+          !isEmailVerified ? 'Verifique seu email para criar serviços' : ''
+        "
+      >
         Criar primeiro serviço
       </button>
     </div>

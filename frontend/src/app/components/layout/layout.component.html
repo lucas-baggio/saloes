@@ -1,4 +1,41 @@
 <div class="min-h-screen bg-gray-50">
+  <!-- Email não verificado - Banner de aviso -->
+  @if (user && (!user.email_verified_at || user.email_verified_at === null ||
+  user.email_verified_at === '')) {
+  <div class="bg-yellow-50 border-b border-yellow-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <svg
+            class="h-5 w-5 text-yellow-600 mr-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          <p class="text-sm text-yellow-800">
+            <strong>Verifique seu email!</strong> Enviamos um link de
+            verificação para <strong>{{ user.email }}</strong
+            >. Verifique sua caixa de entrada.
+          </p>
+        </div>
+        <button
+          (click)="resendVerification()"
+          class="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline"
+        >
+          Reenviar email
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
   <!-- Navigation -->
   <nav class="bg-white shadow-lg">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -37,6 +74,13 @@
               class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
             >
               Agendamentos
+            </a>
+            <a
+              routerLink="/calendar"
+              routerLinkActive="border-primary-500 text-gray-900"
+              class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
+            >
+              Calendário
             </a>
             <a
               *ngIf="user?.role === 'owner' || user?.role === 'admin'"
@@ -118,6 +162,14 @@
           (click)="isMenuOpen = false"
         >
           Agendamentos
+        </a>
+        <a
+          routerLink="/calendar"
+          routerLinkActive="bg-primary-50 border-primary-500 text-primary-700"
+          class="bg-white border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+          (click)="isMenuOpen = false"
+        >
+          Calendário
         </a>
         <a
           *ngIf="user?.role === 'owner' || user?.role === 'admin'"
