@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -40,5 +41,26 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Establishment::class, 'employee_establishment', 'user_id', 'establishment_id')
             ->withTimestamps();
+    }
+
+    public function userPlans(): HasMany
+    {
+        return $this->hasMany(UserPlan::class);
+    }
+
+    public function currentPlan(): HasOne
+    {
+        return $this->hasOne(UserPlan::class)
+            ->where('status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', now());
+            })
+            ->latest();
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 }
