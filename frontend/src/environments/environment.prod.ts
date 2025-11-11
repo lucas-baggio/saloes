@@ -1,6 +1,5 @@
 export const environment = {
-  production: false,
-  // apiUrl: 'https://saloes.mooo.com/api',
-  apiUrl: 'http://127.0.0.1:8000/api',
+  production: true,
+  apiUrl: 'https://saloes.mooo.com/api',
   mercadoPagoPublicKey: 'APP_USR-2e9891a9-864a-41e9-affb-9a2250812631',
 };

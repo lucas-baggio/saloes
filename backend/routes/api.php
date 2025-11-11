@@ -43,8 +43,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Planos
     Route::get('plans', [PlanController::class, 'index']);
+    Route::get('plans/current', [PlanController::class, 'current']); // Deve vir ANTES de plans/{plan}
     Route::get('plans/{plan}', [PlanController::class, 'show']);
-    Route::get('plans/current', [PlanController::class, 'current']);
     Route::post('plans/subscribe', [PlanController::class, 'subscribe']);
     Route::post('plans/cancel', [PlanController::class, 'cancel']);
     Route::post('plans', [PlanController::class, 'store']); // Criar plano (para desenvolvimento)

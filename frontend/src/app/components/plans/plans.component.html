@@ -1,0 +1,160 @@
+<div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+  <div class="mb-6 sm:mb-8">
+    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Planos</h1>
+    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
+      Escolha o plano ideal para o seu negócio
+    </p>
+  </div>
+
+  <!-- Intervalo de pagamento -->
+  <div class="flex justify-center mb-8">
+    <div class="inline-flex rounded-lg border border-gray-300 p-1 bg-white">
+      <button
+        (click)="selectedInterval = 'monthly'"
+        [class]="
+          selectedInterval === 'monthly'
+            ? 'bg-primary-600 text-white'
+            : 'text-gray-700 hover:bg-gray-50'
+        "
+        class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
+      >
+        Mensal
+      </button>
+      <button
+        (click)="selectedInterval = 'yearly'"
+        [class]="
+          selectedInterval === 'yearly'
+            ? 'bg-primary-600 text-white'
+            : 'text-gray-700 hover:bg-gray-50'
+        "
+        class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
+      >
+        Anual
+        <span
+          class="ml-1 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded"
+        >
+          -17%
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Plano atual -->
+  <div
+    *ngIf="currentPlan && currentPlan.status === 'active'"
+    class="mb-6 bg-primary-50 border border-primary-200 rounded-lg p-4"
+  >
+    <div class="flex items-center justify-between">
+      <div>
+        <h3 class="text-lg font-semibold text-primary-900">
+          Plano Atual: {{ currentPlan.plan?.name }}
+        </h3>
+        <p class="text-sm text-primary-700 mt-1">
+          Válido até
+          {{
+            currentPlan.ends_at
+              ? (currentPlan.ends_at | date : "dd/MM/yyyy")
+              : "Indefinido"
+          }}
+        </p>
+      </div>
+      <button
+        (click)="cancelPlan()"
+        [disabled]="subscribing"
+        class="btn btn-secondary text-sm"
+      >
+        Cancelar Plano
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="text-center py-12">
+    <div
+      class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
+    ></div>
+    <p class="mt-2 text-gray-600">Carregando planos...</p>
+  </div>
+
+  <!-- Lista de planos -->
+  <div
+    *ngIf="!loading"
+    class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto"
+  >
+    <div
+      *ngFor="let plan of getFilteredPlans()"
+      [class.ring-2]="plan.is_popular"
+      [class.ring-primary-500]="plan.is_popular"
+      [class.relative]="plan.is_popular"
+      class="card hover:shadow-xl transition-all duration-300"
+    >
+      <!-- Badge popular -->
+      <div
+        *ngIf="plan.is_popular"
+        class="absolute -top-4 left-1/2 transform -translate-x-1/2"
+      >
+        <span
+          class="bg-primary-600 text-white px-4 py-1 rounded-full text-xs font-semibold"
+        >
+          Mais Popular
+        </span>
+      </div>
+
+      <div class="text-center mb-6">
+        <h3 class="text-2xl font-bold text-gray-900 mb-2">{{ plan.name }}</h3>
+        <p *ngIf="plan.description" class="text-sm text-gray-600 mb-4">
+          {{ plan.description }}
+        </p>
+        <div class="mb-4">
+          <span class="text-4xl font-bold text-gray-900"
+            >R$ {{ plan.price | number : "1.2-2" }}</span
+          >
+          <span class="text-gray-600 ml-2"
+            >/{{ plan.interval === "monthly" ? "mês" : "ano" }}</span
+          >
+        </div>
+      </div>
+
+      <ul class="space-y-3 mb-6">
+        <li *ngFor="let feature of plan.features" class="flex items-start">
+          <svg
+            class="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          <span class="text-sm text-gray-700">{{ feature }}</span>
+        </li>
+      </ul>
+
+      <button
+        (click)="subscribe(plan)"
+        [disabled]="subscribing || isCurrentPlan(plan.id)"
+        [class]="
+          plan.is_popular
+            ? 'btn btn-primary w-full'
+            : 'btn btn-secondary w-full'
+        "
+        class="mt-auto"
+      >
+        <span *ngIf="isCurrentPlan(plan.id)">Plano Atual</span>
+        <span *ngIf="!isCurrentPlan(plan.id)">Assinar Plano</span>
+      </button>
+    </div>
+
+    <!-- Mensagem quando não há planos -->
+    <div
+      *ngIf="getFilteredPlans().length === 0"
+      class="col-span-full text-center py-12"
+    >
+      <p class="text-gray-500">Nenhum plano disponível para este período.</p>
+    </div>
+  </div>
+</div>

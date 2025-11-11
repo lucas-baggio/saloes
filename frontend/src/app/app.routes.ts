@@ -3,6 +3,7 @@ import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { ownerGuard } from './guards/role.guard';
 import { emailVerifiedGuard } from './guards/email-verified.guard';
+import { environment } from '../environments/environment';
 
 export const routes: Routes = [
   {
@@ -121,6 +122,7 @@ export const routes: Routes = [
           ),
         canActivate: [ownerGuard, emailVerifiedGuard],
       },
+      // Rota de teste de limites (apenas em desenvolvimento
     ],
   },
   {

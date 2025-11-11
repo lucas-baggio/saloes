@@ -61,7 +61,8 @@ class PlanController extends Controller
         $userPlan = $user->currentPlan;
 
         if (!$userPlan) {
-            return response()->json(['message' => 'Nenhum plano ativo encontrado'], Response::HTTP_NOT_FOUND);
+            // Retorna null em vez de 404 para facilitar o tratamento no frontend
+            return response()->json(null);
         }
 
         $userPlan->load('plan');
