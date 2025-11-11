@@ -13,19 +13,11 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
-    private ?MercadoPagoService $mercadoPagoService = null;
+    private MercadoPagoService $mercadoPagoService;
 
-    public function __construct()
+    public function __construct(MercadoPagoService $mercadoPagoService)
     {
-        // Injeção de dependência lazy para evitar erros na inicialização
-        try {
-            $this->mercadoPagoService = app(MercadoPagoService::class);
-        } catch (\Exception $e) {
-            Log::error('Erro ao inicializar MercadoPagoService', [
-                'error' => $e->getMessage(),
-            ]);
-            // Continua sem o serviço - métodos que precisam dele devem verificar
-        }
+        $this->mercadoPagoService = $mercadoPagoService;
     }
 
     /**
@@ -52,14 +44,6 @@ class PaymentController extends Controller
             return response()->json([
                 'message' => 'Este plano não está disponível.',
             ], Response::HTTP_BAD_REQUEST);
-        }
-
-        // Verifica se o serviço está disponível
-        if (!$this->mercadoPagoService) {
-            return response()->json([
-                'message' => 'Serviço de pagamento não está disponível. Verifique as configurações.',
-                'error' => 'MercadoPagoService não inicializado',
-            ], Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
         DB::beginTransaction();
@@ -170,14 +154,6 @@ class PaymentController extends Controller
             ->where('user_id', $user->id)
             ->firstOrFail();
 
-        // Verifica se o serviço está disponível
-        if (!$this->mercadoPagoService) {
-            return response()->json([
-                'message' => 'Serviço de pagamento não está disponível.',
-                'error' => 'MercadoPagoService não inicializado',
-            ], Response::HTTP_SERVICE_UNAVAILABLE);
-        }
-
         // Se tem ID do Mercado Pago, busca o status atualizado e dados do PIX
         if ($payment->mercadopago_payment_id) {
             $status = $this->mercadoPagoService->getPaymentStatus($payment->mercadopago_payment_id);
@@ -219,125 +195,45 @@ class PaymentController extends Controller
      */
     public function webhook(Request $request)
     {
-        try {
-            $data = $request->all();
+        $data = $request->all();
 
-            // Log do webhook recebido
-            Log::info('Webhook Mercado Pago recebido', [
-                'action' => $data['action'] ?? null,
-                'type' => $data['type'] ?? null,
-                'data_id' => $data['data']['id'] ?? null,
-                'live_mode' => $data['live_mode'] ?? null,
-            ]);
+        // Validação opcional do webhook_secret (se configurado)
+        $webhookSecret = config('services.mercadopago.webhook_secret');
+        if ($webhookSecret) {
+            $xSignature = $request->header('x-signature');
+            $xRequestId = $request->header('x-request-id');
 
-            // Validação opcional do webhook_secret (se configurado)
-            $webhookSecret = config('services.mercadopago.webhook_secret');
-            if ($webhookSecret) {
-                $xSignature = $request->header('x-signature');
-                $xRequestId = $request->header('x-request-id');
-
-                // Validação básica - você pode implementar validação mais robusta se necessário
-                if (!$xSignature || !$xRequestId) {
-                    Log::warning('Webhook sem assinatura válida', $data);
-                    return response()->json(['status' => 'error', 'message' => 'Assinatura inválida'], 401);
-                }
+            // Validação básica - você pode implementar validação mais robusta se necessário
+            if (!$xSignature || !$xRequestId) {
+                Log::warning('Webhook sem assinatura válida', $data);
+                return response()->json(['status' => 'error', 'message' => 'Assinatura inválida'], 401);
             }
+        }
 
-            // Verifica se é um evento de pagamento
-            if (!isset($data['type']) || $data['type'] !== 'payment') {
-                Log::info('Webhook ignorado - não é um evento de pagamento', ['type' => $data['type'] ?? null]);
-                return response()->json(['status' => 'ok', 'message' => 'Evento ignorado']);
-            }
+        Log::info('Webhook Mercado Pago recebido', $data);
 
-            // Verifica se tem o ID do pagamento
-            if (!isset($data['data']['id'])) {
-                Log::warning('Webhook sem ID de pagamento', $data);
-                return response()->json(['status' => 'error', 'message' => 'ID de pagamento não encontrado'], 400);
-            }
-
+        if (isset($data['data']['id'])) {
             $paymentId = $data['data']['id'];
 
-            // Busca o pagamento no banco
             $payment = Payment::where('mercadopago_payment_id', $paymentId)->first();
 
-            if (!$payment) {
-                Log::warning('Pagamento não encontrado no banco', ['mercadopago_payment_id' => $paymentId]);
-                return response()->json(['status' => 'ok', 'message' => 'Pagamento não encontrado']);
-            }
-
-            // Verifica se o serviço está disponível
-            if (!$this->mercadoPagoService) {
-                Log::error('MercadoPagoService não está disponível no webhook');
-                return response()->json([
-                    'status' => 'ok',
-                    'message' => 'Serviço não disponível, mas webhook recebido'
-                ], 200);
-            }
-
-            // Busca o status atualizado do Mercado Pago
-            try {
+            if ($payment) {
                 $status = $this->mercadoPagoService->getPaymentStatus($paymentId);
 
-                if ($status && isset($status['status'])) {
+                if ($status) {
                     $payment->update([
-                        'status' => $status['status'],
-                    ]);
-
-                    Log::info('Status do pagamento atualizado', [
-                        'payment_id' => $payment->id,
-                        'mercadopago_payment_id' => $paymentId,
                         'status' => $status['status'],
                     ]);
 
                     // Se foi aprovado, ativa o plano
                     if ($status['status'] === 'approved' && !$payment->user_plan_id) {
-                        try {
-                            $payment->load(['user', 'plan']);
-                            if ($payment->user && $payment->plan) {
-                                $this->activatePlan($payment->user, $payment->plan);
-                                Log::info('Plano ativado via webhook', [
-                                    'user_id' => $payment->user->id,
-                                    'plan_id' => $payment->plan->id,
-                                ]);
-                            }
-                        } catch (\Exception $e) {
-                            Log::error('Erro ao ativar plano via webhook', [
-                                'error' => $e->getMessage(),
-                                'payment_id' => $payment->id,
-                            ]);
-                        }
+                        $this->activatePlan($payment->user, $payment->plan);
                     }
-                } else {
-                    Log::warning('Status do pagamento não retornado corretamente', [
-                        'payment_id' => $payment->id,
-                        'status_response' => $status,
-                    ]);
                 }
-            } catch (\Exception $e) {
-                Log::error('Erro ao buscar status do pagamento no Mercado Pago', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                    'payment_id' => $payment->id,
-                    'mercadopago_payment_id' => $paymentId,
-                ]);
-                // Retorna OK mesmo em caso de erro para não bloquear o webhook
-                return response()->json(['status' => 'ok', 'message' => 'Erro ao processar, mas webhook recebido']);
             }
-
-            return response()->json(['status' => 'ok']);
-        } catch (\Exception $e) {
-            Log::error('Erro ao processar webhook do Mercado Pago', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all(),
-            ]);
-
-            // Retorna 200 para evitar que o Mercado Pago continue tentando
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Erro ao processar webhook',
-            ], 200);
         }
+
+        return response()->json(['status' => 'ok']);
     }
 
     /**

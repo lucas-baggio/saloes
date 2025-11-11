@@ -43,7 +43,8 @@ class AuthController extends Controller
         ]);
 
         // Enviar email de verificação
-        $verificationUrl = 'https://gerenciador-de-saloes.netlify.app/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
+        $frontendUrl = env('FRONTEND_URL', 'https://gerenciador-de-saloes.netlify.app');
+        $verificationUrl = $frontendUrl . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
         $user->notify(new VerifyEmailNotification($verificationUrl));
 
         // Criar token de autenticação (usuário pode fazer login, mas com limitações se necessário)
@@ -134,14 +135,19 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
         ]);
 
+        \Log::info('forgotPassword chamado', ['email' => $request->email]);
+
         $user = User::where('email', $request->email)->first();
 
         if (! $user) {
+            \Log::info('Usuário não encontrado', ['email' => $request->email]);
             // Por segurança, não revelamos se o email existe ou não
             return response()->json([
                 'message' => 'Se o email estiver cadastrado, você receberá um link para redefinir sua senha.',
             ], Response::HTTP_OK);
         }
+
+        \Log::info('Usuário encontrado', ['user_id' => $user->id, 'email' => $user->email]);
 
         // Gerar token
         $token = Str::random(64);
@@ -155,10 +161,32 @@ class AuthController extends Controller
             ]
         );
 
-        // Enviar email com o token
-        $resetUrl = 'https://gerenciador-de-saloes.netlify.app/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+        \Log::info('Token gerado e salvo no banco');
 
-        $user->notify(new ResetPasswordNotification($resetUrl));
+        // Enviar email com o token
+        $frontendUrl = env('FRONTEND_URL', 'https://gerenciador-de-saloes.netlify.app');
+        $resetUrl = $frontendUrl . '/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+
+        \Log::info('Preparando para enviar email', [
+            'frontend_url' => $frontendUrl,
+            'reset_url' => $resetUrl,
+            'mail_config' => [
+                'mailer' => config('mail.default'),
+                'host' => config('mail.mailers.smtp.host'),
+                'port' => config('mail.mailers.smtp.port'),
+                'from' => config('mail.from'),
+            ],
+        ]);
+
+        try {
+            $user->notify(new ResetPasswordNotification($resetUrl));
+            \Log::info('Notificação enviada com sucesso');
+        } catch (\Exception $e) {
+            \Log::error('Erro ao enviar notificação', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
 
         return response()->json([
             'message' => 'Se o email estiver cadastrado, você receberá um link para redefinir sua senha.',
@@ -338,7 +366,8 @@ class AuthController extends Controller
         ]);
 
         // Enviar email de verificação
-        $verificationUrl = 'https://gerenciador-de-saloes.netlify.app/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
+        $frontendUrl = env('FRONTEND_URL', 'https://gerenciador-de-saloes.netlify.app');
+        $verificationUrl = $frontendUrl . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
         $user->notify(new VerifyEmailNotification($verificationUrl));
 
         return response()->json([
