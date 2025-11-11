@@ -3,11 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Establishment;
+use App\Services\PlanLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class EstablishmentController extends Controller
 {
+    protected $planLimitService;
+
+    public function __construct(PlanLimitService $planLimitService)
+    {
+        $this->planLimitService = $planLimitService;
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -41,6 +49,16 @@ class EstablishmentController extends Controller
         // Funcionários não podem criar estabelecimentos
         if ($user->role === 'employee') {
             return response()->json(['message' => 'Não autorizado. Funcionários não podem criar estabelecimentos.'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Verifica limite de estabelecimentos
+        $limitCheck = $this->planLimitService->canCreateEstablishment($user);
+        if (!$limitCheck['allowed']) {
+            return response()->json([
+                'message' => $limitCheck['message'],
+                'current' => $limitCheck['current'] ?? null,
+                'limit' => $limitCheck['limit'] ?? null,
+            ], Response::HTTP_FORBIDDEN);
         }
 
         $data = $request->validate([

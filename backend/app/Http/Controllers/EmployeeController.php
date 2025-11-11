@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Service;
 use App\Models\Establishment;
 use App\Models\Scheduling;
+use App\Services\PlanLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +14,13 @@ use Illuminate\Support\Facades\DB;
 
 class EmployeeController extends Controller
 {
+    protected $planLimitService;
+
+    public function __construct(PlanLimitService $planLimitService)
+    {
+        $this->planLimitService = $planLimitService;
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -113,6 +121,16 @@ class EmployeeController extends Controller
         $establishment = Establishment::findOrFail($data['establishment_id']);
         if ($user->role === 'owner' && $establishment->owner_id !== $user->id) {
             return response()->json(['message' => 'Estabelecimento não pertence a você.'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Verifica limite de funcionários
+        $limitCheck = $this->planLimitService->canAddEmployee($user);
+        if (!$limitCheck['allowed']) {
+            return response()->json([
+                'message' => $limitCheck['message'],
+                'current' => $limitCheck['current'] ?? null,
+                'limit' => $limitCheck['limit'] ?? null,
+            ], Response::HTTP_FORBIDDEN);
         }
 
         $data['password'] = Hash::make($data['password']);

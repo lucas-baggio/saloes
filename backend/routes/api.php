@@ -7,6 +7,7 @@ use App\Http\Controllers\EstablishmentController;
 use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PlanController;
+use App\Http\Controllers\PlanLimitTestController;
 use App\Http\Controllers\SchedulingController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SubServiceController;
@@ -55,4 +56,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Webhook do Mercado Pago (sem autenticação)
 Route::post('payments/webhook', [PaymentController::class, 'webhook']);
+
+// Rotas de teste (apenas em desenvolvimento)
+if (app()->environment('local', 'testing')) {
+    Route::prefix('test')->group(function () {
+        Route::get('plan-limits/{userId}', [PlanLimitTestController::class, 'testLimits']);
+        Route::post('create-test-user', [PlanLimitTestController::class, 'createTestUser']);
+    });
+}
 

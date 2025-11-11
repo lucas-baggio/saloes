@@ -5,12 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Service;
 use App\Models\SubService;
 use App\Models\Establishment;
+use App\Services\PlanLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class ServiceController extends Controller
 {
+    protected $planLimitService;
+
+    public function __construct(PlanLimitService $planLimitService)
+    {
+        $this->planLimitService = $planLimitService;
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -77,6 +85,16 @@ class ServiceController extends Controller
             if ($establishment->owner_id !== $user->id) {
                 return response()->json(['message' => 'Não autorizado. Estabelecimento não pertence a você.'], Response::HTTP_FORBIDDEN);
             }
+        }
+
+        // Verifica limite de serviços
+        $limitCheck = $this->planLimitService->canCreateService($user);
+        if (!$limitCheck['allowed']) {
+            return response()->json([
+                'message' => $limitCheck['message'],
+                'current' => $limitCheck['current'] ?? null,
+                'limit' => $limitCheck['limit'] ?? null,
+            ], Response::HTTP_FORBIDDEN);
         }
 
         // Validar e processar subserviços

@@ -105,6 +105,16 @@ class PaymentController extends Controller
 
             if (!$result['success']) {
                 DB::rollBack();
+
+                // Log detalhado do erro
+                Log::error('Erro ao processar pagamento no Mercado Pago', [
+                    'payment_method' => $data['payment_method'],
+                    'plan_id' => $plan->id,
+                    'user_id' => $user->id,
+                    'error' => $result['error'] ?? 'Erro desconhecido',
+                    'result' => $result,
+                ]);
+
                 return response()->json([
                     'message' => 'Erro ao processar pagamento.',
                     'error' => $result['error'] ?? 'Erro desconhecido',
@@ -230,7 +240,7 @@ class PaymentController extends Controller
             }
         }
 
-        $payment->load('plan');
+        $payment->load(['plan', 'userPlan']);
 
         return response()->json($payment);
     }

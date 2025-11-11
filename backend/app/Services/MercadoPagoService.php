@@ -195,36 +195,286 @@ class MercadoPagoService
         try {
             $this->checkAvailability();
 
-            $mpPayment = $this->paymentClient->create([
-                'transaction_amount' => (float) $plan->price,
-                'description' => "Plano {$plan->name}",
-                'payment_method_id' => 'bolbradesco', // ou outro banco
-                'payer' => [
-                    'email' => $payment->user->email,
-                    'first_name' => explode(' ', $payment->user->name)[0] ?? $payment->user->name,
-                    'last_name' => explode(' ', $payment->user->name)[1] ?? '',
-                ],
-                'metadata' => [
-                    'payment_id' => $payment->id,
-                    'plan_id' => $plan->id,
-                    'user_id' => $payment->user_id,
-                ],
+            \Log::info('Criando pagamento Boleto no Mercado Pago', [
+                'payment_id' => $payment->id,
+                'plan_id' => $plan->id,
+                'amount' => $plan->price,
+                'user_email' => $payment->user->email,
+                'user_name' => $payment->user->name,
             ]);
 
-            $transactionData = $mpPayment->point_of_interaction->transaction_data ?? null;
+            // Prepara os dados do pagador
+            $userNameParts = explode(' ', $payment->user->name, 2);
+            $firstName = $userNameParts[0] ?? $payment->user->name;
+            $lastName = $userNameParts[1] ?? '';
+
+            // Para boleto, o CPF não é obrigatório, mas pode ser necessário dependendo da configuração
+            // Vamos usar um CPF válido de teste se não tiver
+            $cpf = '12345678909'; // CPF de teste válido para ambiente de testes/sandbox
+
+            // Prepara o payload do pagamento
+            $paymentRequest = [
+                'transaction_amount' => (float) $plan->price,
+                'description' => "Plano {$plan->name}",
+                'payment_method_id' => 'bolbradesco', // Boleto Bradesco
+                'payer' => [
+                    'email' => $payment->user->email,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName ?: $firstName, // Se não tiver sobrenome, usa o primeiro nome
+                    'identification' => [
+                        'type' => 'CPF',
+                        'number' => $cpf,
+                    ],
+                ],
+                'metadata' => [
+                    'payment_id' => (string) $payment->id,
+                    'plan_id' => (string) $plan->id,
+                    'user_id' => (string) $payment->user_id,
+                ],
+            ];
+
+            \Log::info('Payload do pagamento Boleto preparado', [
+                'payment_id' => $payment->id,
+                'payment_request' => $paymentRequest,
+            ]);
+
+            // Tenta usar o SDK primeiro
+            try {
+                $mpPayment = $this->paymentClient->create($paymentRequest);
+
+                \Log::info('Pagamento Boleto criado com sucesso via SDK', [
+                    'payment_id' => $payment->id,
+                    'mp_payment_id' => $mpPayment->id ?? null,
+                    'status' => $mpPayment->status ?? null,
+                ]);
+
+                // Converte o objeto para array para acesso seguro
+                // O SDK do Mercado Pago retorna objetos que podem ser convertidos para array
+                $paymentArray = json_decode(json_encode($mpPayment), true);
+
+                \Log::info('Pagamento Boleto criado - estrutura completa', [
+                    'payment_id' => $payment->id,
+                    'mp_payment_id' => $paymentArray['id'] ?? null,
+                    'status' => $paymentArray['status'] ?? null,
+                    'has_point_of_interaction' => isset($paymentArray['point_of_interaction']),
+                    'point_of_interaction_keys' => isset($paymentArray['point_of_interaction']) ? array_keys($paymentArray['point_of_interaction']) : null,
+                ]);
+
+                // Extrai os dados do boleto
+                $pointOfInteraction = $paymentArray['point_of_interaction'] ?? null;
+                $transactionData = $pointOfInteraction['transaction_data'] ?? null;
+
+                \Log::info('Dados do boleto extraídos', [
+                    'payment_id' => $payment->id,
+                    'has_transaction_data' => !empty($transactionData),
+                    'transaction_data_keys' => $transactionData ? array_keys($transactionData) : null,
+                ]);
+
+                return [
+                    'success' => true,
+                    'payment_id' => $paymentArray['id'] ?? $mpPayment->id,
+                    'status' => $this->mapStatus($paymentArray['status'] ?? 'pending'),
+                    'barcode' => $transactionData['barcode'] ?? null,
+                    'barcode_base64' => $transactionData['barcode_base64'] ?? null,
+                    'due_date' => $transactionData['expiration_date'] ?? null,
+                    'ticket_url' => $transactionData['ticket_url'] ?? null,
+                    'transaction_id' => $paymentArray['id'] ?? $mpPayment->id,
+                ];
+            } catch (\MercadoPago\Exceptions\MPApiException $sdkException) {
+                // Captura detalhes completos do erro do SDK
+                $sdkErrorDetails = [
+                    'payment_id' => $payment->id,
+                    'error_message' => $sdkException->getMessage(),
+                    'error_class' => get_class($sdkException),
+                    'status_code' => method_exists($sdkException, 'getStatusCode') ? $sdkException->getStatusCode() : null,
+                ];
+
+                try {
+                    if (method_exists($sdkException, 'getApiResponse')) {
+                        $apiResponse = $sdkException->getApiResponse();
+                        if ($apiResponse) {
+                            $errorContent = $apiResponse->getContent();
+                            $sdkErrorDetails['response_content'] = $errorContent;
+                            $sdkErrorDetails['status_code'] = $apiResponse->getStatusCode();
+
+                            // Extrai mensagem de erro mais específica
+                            if (isset($errorContent['message'])) {
+                                $sdkErrorDetails['error_message'] = $errorContent['message'];
+                            }
+                            if (isset($errorContent['cause']) && is_array($errorContent['cause']) && !empty($errorContent['cause'])) {
+                                $sdkErrorDetails['cause'] = $errorContent['cause'][0]['description'] ?? null;
+                                $sdkErrorDetails['error_code'] = $errorContent['cause'][0]['code'] ?? null;
+                            }
+                        }
+                    }
+                } catch (\Exception $ex) {
+                    $sdkErrorDetails['response_error'] = $ex->getMessage();
+                }
+
+                \Log::error('Erro ao criar pagamento Boleto via SDK - detalhes completos', $sdkErrorDetails);
+
+                // Se falhar com o SDK, tenta via API REST
+                \Log::warning('Tentando criar pagamento Boleto via API REST como fallback', [
+                    'payment_id' => $payment->id,
+                ]);
+
+                return $this->createBoletoPaymentViaRest($payment, $plan, $paymentRequest);
+            }
+        } catch (\MercadoPago\Exceptions\MPApiException $e) {
+            // Captura erros específicos da API do Mercado Pago
+            $errorDetails = [
+                'payment_id' => $payment->id,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'status_code' => method_exists($e, 'getStatusCode') ? $e->getStatusCode() : null,
+            ];
+
+            try {
+                if (method_exists($e, 'getApiResponse')) {
+                    $apiResponse = $e->getApiResponse();
+                    if ($apiResponse) {
+                        $errorContent = $apiResponse->getContent();
+                        $errorDetails['response_content'] = $errorContent;
+                        $errorDetails['status_code'] = $apiResponse->getStatusCode();
+                    }
+                }
+            } catch (\Exception $ex) {
+                $errorDetails['response_error'] = $ex->getMessage();
+            }
+
+            \Log::error('Erro ao processar pagamento Boleto (MPApiException)', $errorDetails);
+
+            $errorMessage = $e->getMessage();
+            if (isset($errorDetails['response_content']['message'])) {
+                $errorMessage = $errorDetails['response_content']['message'];
+            } elseif (isset($errorDetails['response_content']['error'])) {
+                $errorMessage = $errorDetails['response_content']['error'];
+            } elseif (isset($errorDetails['response_content']['cause'][0]['description'])) {
+                $errorMessage = $errorDetails['response_content']['cause'][0]['description'];
+            }
+
+            return [
+                'success' => false,
+                'error' => $errorMessage,
+            ];
+        } catch (Exception $e) {
+            \Log::error('Erro inesperado ao processar pagamento Boleto', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Erro inesperado ao processar pagamento: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Cria um pagamento Boleto via API REST
+     */
+    private function createBoletoPaymentViaRest(Payment $payment, Plan $plan, array $paymentRequest): array
+    {
+        try {
+            $accessToken = config('services.mercadopago.access_token');
+            $url = 'https://api.mercadopago.com/v1/payments';
+
+            // Gera uma chave de idempotência única para este pagamento
+            $idempotencyKey = 'boleto_' . $payment->id . '_' . time() . '_' . uniqid();
+
+            \Log::info('Criando pagamento Boleto via API REST', [
+                'payment_id' => $payment->id,
+                'idempotency_key' => $idempotencyKey,
+            ]);
+
+            $ch = curl_init($url);
+
+            // Configurações do cURL
+            $curlOptions = [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $accessToken,
+                    'X-Idempotency-Key: ' . $idempotencyKey,
+                ],
+                CURLOPT_POSTFIELDS => json_encode($paymentRequest),
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_CONNECTTIMEOUT => 10,
+            ];
+
+            // Em ambiente local/desenvolvimento, desabilita verificação SSL se necessário
+            // Em produção, o servidor deve ter os certificados SSL configurados corretamente
+            if (app()->environment('local', 'development') || config('app.debug')) {
+                // Desabilita verificação SSL apenas em desenvolvimento local
+                // ATENÇÃO: Nunca use isso em produção!
+                $curlOptions[CURLOPT_SSL_VERIFYPEER] = false;
+                $curlOptions[CURLOPT_SSL_VERIFYHOST] = false;
+            }
+
+            curl_setopt_array($ch, $curlOptions);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($curlError) {
+                throw new Exception('Erro ao chamar API do Mercado Pago: ' . $curlError);
+            }
+
+            $responseData = json_decode($response, true);
+
+            if ($httpCode !== 201 && $httpCode !== 200) {
+                \Log::error('Erro ao criar pagamento Boleto via API REST', [
+                    'payment_id' => $payment->id,
+                    'http_code' => $httpCode,
+                    'response' => $responseData,
+                ]);
+
+                $errorMessage = $responseData['message'] ?? 'Erro ao processar pagamento';
+                if (isset($responseData['cause']) && is_array($responseData['cause'])) {
+                    $errorMessage .= ': ' . ($responseData['cause'][0]['description'] ?? '');
+                }
+
+                return [
+                    'success' => false,
+                    'error' => $errorMessage,
+                ];
+            }
+
+            \Log::info('Pagamento Boleto criado com sucesso via API REST', [
+                'payment_id' => $payment->id,
+                'mp_payment_id' => $responseData['id'] ?? null,
+                'status' => $responseData['status'] ?? null,
+            ]);
+
+            // Extrai os dados do boleto da resposta
+            $transactionData = $responseData['point_of_interaction']['transaction_data'] ?? null;
+            $ticketUrl = $transactionData['ticket_url'] ?? null;
 
             return [
                 'success' => true,
-                'payment_id' => $mpPayment->id,
-                'status' => $this->mapStatus($mpPayment->status),
-                'barcode' => $transactionData->barcode ?? null,
-                'barcode_base64' => $transactionData->barcode_base64 ?? null,
-                'due_date' => $transactionData->expiration_date ?? null,
+                'payment_id' => $responseData['id'],
+                'status' => $this->mapStatus($responseData['status'] ?? 'pending'),
+                'barcode' => $transactionData['barcode'] ?? null,
+                'barcode_base64' => $transactionData['barcode_base64'] ?? null,
+                'due_date' => $transactionData['expiration_date'] ?? null,
+                'ticket_url' => $ticketUrl,
+                'transaction_id' => $responseData['id'],
             ];
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
+            \Log::error('Erro ao criar pagamento Boleto via API REST', [
+                'payment_id' => $payment->id,
+                'exception_class' => get_class($e),
+                'exception_message' => $e->getMessage(),
+                'exception_trace' => $e->getTraceAsString(),
+            ]);
+
             return [
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Erro ao processar pagamento: ' . $e->getMessage(),
             ];
         }
     }
@@ -355,7 +605,9 @@ class MercadoPagoService
                 $idempotencyKey = 'payment_' . $payment->id . '_' . time() . '_' . uniqid();
 
                 $ch = curl_init($url);
-                curl_setopt_array($ch, [
+
+                // Configurações do cURL
+                $curlOptions = [
                     CURLOPT_POST => true,
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_HTTPHEADER => [
@@ -364,7 +616,20 @@ class MercadoPagoService
                         'X-Idempotency-Key: ' . $idempotencyKey, // Header obrigatório para idempotência
                     ],
                     CURLOPT_POSTFIELDS => json_encode($paymentRequest),
-                ]);
+                    CURLOPT_TIMEOUT => 30,
+                    CURLOPT_CONNECTTIMEOUT => 10,
+                ];
+
+                // Em ambiente local/desenvolvimento, desabilita verificação SSL se necessário
+                // Em produção, o servidor deve ter os certificados SSL configurados corretamente
+                if (app()->environment('local', 'development') || config('app.debug')) {
+                    // Desabilita verificação SSL apenas em desenvolvimento local
+                    // ATENÇÃO: Nunca use isso em produção!
+                    $curlOptions[CURLOPT_SSL_VERIFYPEER] = false;
+                    $curlOptions[CURLOPT_SSL_VERIFYHOST] = false;
+                }
+
+                curl_setopt_array($ch, $curlOptions);
 
                 $response = curl_exec($ch);
                 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
