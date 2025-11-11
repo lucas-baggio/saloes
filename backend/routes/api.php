@@ -4,11 +4,15 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EstablishmentController;
+use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\SchedulingController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SubServiceController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+
+// Health check route - verifica se a aplicação e banco estão funcionando
+Route::get('health', [HealthCheckController::class, 'check']);
 
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
