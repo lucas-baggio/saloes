@@ -266,21 +266,30 @@ class MercadoPagoService
                 $cpf = '00000000000';
             }
 
-            // Prepara os dados do pagamento
-            // IMPORTANTE: Conforme os testes do SDK do Mercado Pago, quando usamos token:
-            // - Enviamos apenas token, transaction_amount, description, installments, payer
-            // - NÃO enviamos expiration_month/expiration_year (já estão no token)
-            // - Podemos enviar payment_method_id para ajudar na detecção
+            // IMPORTANTE: Conforme a documentação oficial do Mercado Pago Brasil,
+            // quando usamos token, os dados de expiração (expiration_month/expiration_year)
+            // JÁ ESTÃO ENCAPSULADOS NO TOKEN gerado no frontend.
+            // Portanto, NÃO devemos enviar esses campos no payload do pagamento.
+            // O token foi criado com card_expiration_month e card_expiration_year no frontend,
+            // e esses dados estão contidos no token.
             //
-            // NOTA: Se a API reclamar que expiration_month está faltando, o problema pode ser:
-            // 1. O token não foi criado corretamente no frontend
-            // 2. O token não contém os dados de expiração
-            // 3. Incompatibilidade entre public key (frontend) e access token (backend) - teste vs produção
+            // Fonte: https://www.mercadopago.com.br/developers/pt/reference/payments/_payments/post
+            //
+            // Nota: Não precisamos mais validar ou formatar expiry_month/expiry_year aqui,
+            // pois esses dados não serão enviados no payload do pagamento.
+
+            // Prepara os dados do pagamento
+            // FLUXO CORRETO DO MERCADO PAGO:
+            // 1. Frontend: Cria token com expiration_month/expiration_year ✅ (já feito)
+            // 2. Backend: Cria pagamento usando APENAS o token ✅ (fazendo aqui)
+            //
+            // IMPORTANTE: NÃO enviar expiration_month/expiration_year no payload do pagamento!
+            // Esses dados já estão no token criado no frontend.
             $paymentRequest = [
                 'transaction_amount' => (float) $plan->price,
                 'description' => "Plano {$plan->name}",
                 'installments' => $installments,
-                'payment_method_id' => 'credit_card', // Tipo genérico - ajuda na detecção automática
+                'token' => $cardData['token'], // Token criado no frontend contém TODOS os dados do cartão
                 'payer' => [
                     'email' => $payment->user->email,
                     'identification' => [
@@ -288,7 +297,6 @@ class MercadoPagoService
                         'number' => $cpf,
                     ],
                 ],
-                'token' => $cardData['token'],
                 'statement_descriptor' => 'SALOES',
                 'metadata' => [
                     'payment_id' => (string) $payment->id,
@@ -296,14 +304,20 @@ class MercadoPagoService
                     'user_id' => (string) $payment->user_id,
                 ],
             ];
+            // NÃO enviar: expiration_month, expiration_year, payment_method_id, capture
+            // O token contém todos os dados necessários do cartão
 
-            \Log::info('Requisição de pagamento preparada (sem campos de expiração)', [
+            // Log da requisição completa (sem dados sensíveis)
+            \Log::info('Requisição de pagamento preparada - usando apenas token (sem expiration_month/expiration_year)', [
                 'payment_id' => $payment->id,
                 'has_token' => !empty($cardData['token']),
                 'token_length' => strlen($cardData['token'] ?? ''),
                 'token_preview' => substr($cardData['token'] ?? '', 0, 8) . '...' . substr($cardData['token'] ?? '', -4),
-                'card_data_keys' => array_keys($cardData),
                 'payment_request_keys' => array_keys($paymentRequest),
+                'has_expiration_month' => isset($paymentRequest['expiration_month']),
+                'has_expiration_year' => isset($paymentRequest['expiration_year']),
+                'has_payment_method_id' => isset($paymentRequest['payment_method_id']),
+                'note' => 'Fluxo correto: token criado no frontend, backend usa APENAS o token',
             ]);
 
             // Valida que o token não está vazio
@@ -318,7 +332,7 @@ class MercadoPagoService
                 ];
             }
 
-            \Log::info('Criando pagamento com cartão de crédito no Mercado Pago', [
+            \Log::info('Criando pagamento com cartão de crédito no Mercado Pago via API REST', [
                 'payment_id' => $payment->id,
                 'plan_id' => $plan->id,
                 'amount' => $plan->price,
@@ -327,12 +341,68 @@ class MercadoPagoService
                 'token_length' => strlen($cardData['token']),
                 'token_preview' => substr($cardData['token'], 0, 8) . '...' . substr($cardData['token'], -4),
                 'cpf' => substr($cpf, 0, 3) . '***' . substr($cpf, -2),
-                'access_token_preview' => substr(config('services.mercadopago.access_token'), 0, 10) . '...',
-                'payment_request_keys' => array_keys($paymentRequest), // Log apenas as chaves da requisição
+                'payment_request_keys' => array_keys($paymentRequest),
             ]);
 
+            // Usa a API REST diretamente (mesma abordagem do frontend para criar token)
+            // Isso garante consistência e evita problemas de validação do SDK
             try {
-                $mpPayment = $this->paymentClient->create($paymentRequest);
+                $accessToken = config('services.mercadopago.access_token');
+                $url = 'https://api.mercadopago.com/v1/payments';
+
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_POST => true,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_HTTPHEADER => [
+                        'Content-Type: application/json',
+                        'Authorization: Bearer ' . $accessToken,
+                    ],
+                    CURLOPT_POSTFIELDS => json_encode($paymentRequest),
+                ]);
+
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $curlError = curl_error($ch);
+                curl_close($ch);
+
+                if ($curlError) {
+                    throw new Exception('Erro ao chamar API do Mercado Pago: ' . $curlError);
+                }
+
+                $responseData = json_decode($response, true);
+
+                if ($httpCode !== 201 && $httpCode !== 200) {
+                    \Log::error('Erro ao criar pagamento via API REST', [
+                        'payment_id' => $payment->id,
+                        'http_code' => $httpCode,
+                        'response' => $responseData,
+                    ]);
+
+                    $errorMessage = $responseData['message'] ?? 'Erro ao processar pagamento';
+                    if (isset($responseData['cause']) && is_array($responseData['cause'])) {
+                        $errorMessage .= ': ' . ($responseData['cause'][0]['description'] ?? '');
+                    }
+
+                    return [
+                        'success' => false,
+                        'error' => $errorMessage,
+                    ];
+                }
+
+                \Log::info('Pagamento criado com sucesso via API REST', [
+                    'payment_id' => $payment->id,
+                    'mp_payment_id' => $responseData['id'] ?? null,
+                    'status' => $responseData['status'] ?? null,
+                ]);
+
+                return [
+                    'success' => true,
+                    'payment_id' => $responseData['id'],
+                    'status' => $this->mapStatus($responseData['status'] ?? 'pending'),
+                    'transaction_id' => $responseData['id'],
+                ];
+
             } catch (\Exception $createException) {
                 \Log::error('Exceção ao criar pagamento no Mercado Pago', [
                     'payment_id' => $payment->id,
@@ -340,15 +410,12 @@ class MercadoPagoService
                     'exception_message' => $createException->getMessage(),
                     'exception_trace' => $createException->getTraceAsString(),
                 ]);
-                throw $createException;
-            }
 
-            return [
-                'success' => true,
-                'payment_id' => $mpPayment->id,
-                'status' => $this->mapStatus($mpPayment->status),
-                'transaction_id' => $mpPayment->id,
-            ];
+                return [
+                    'success' => false,
+                    'error' => 'Erro ao processar pagamento: ' . $createException->getMessage(),
+                ];
+            }
         } catch (\MercadoPago\Exceptions\MPApiException $e) {
             // Captura erros específicos da API do Mercado Pago
             $errorDetails = [
