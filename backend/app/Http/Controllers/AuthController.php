@@ -43,7 +43,7 @@ class AuthController extends Controller
         ]);
 
         // Enviar email de verificação
-        $verificationUrl = env('FRONTEND_URL', 'http://localhost:4200') . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
+        $verificationUrl = 'https://gerenciador-de-saloes.netlify.app/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
         $user->notify(new VerifyEmailNotification($verificationUrl));
 
         // Criar token de autenticação (usuário pode fazer login, mas com limitações se necessário)
@@ -156,7 +156,7 @@ class AuthController extends Controller
         );
 
         // Enviar email com o token
-        $resetUrl = env('FRONTEND_URL', 'http://localhost:4200') . '/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+        $resetUrl = 'https://gerenciador-de-saloes.netlify.app/reset-password?token=' . $token . '&email=' . urlencode($user->email);
 
         $user->notify(new ResetPasswordNotification($resetUrl));
 
@@ -338,7 +338,7 @@ class AuthController extends Controller
         ]);
 
         // Enviar email de verificação
-        $verificationUrl = env('FRONTEND_URL', 'http://localhost:4200') . '/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
+        $verificationUrl = 'https://gerenciador-de-saloes.netlify.app/verify-email?token=' . $verificationToken . '&email=' . urlencode($user->email);
         $user->notify(new VerifyEmailNotification($verificationUrl));
 
         return response()->json([

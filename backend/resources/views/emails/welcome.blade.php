@@ -109,7 +109,7 @@
             <p>Estamos aqui para ajudar você a gerenciar seu negócio de forma mais eficiente e organizada.</p>
 
             <div class="button-container">
-                <a href="{{ env('FRONTEND_URL', 'http://localhost:4200') }}/dashboard" class="button">
+                <a href="https://gerenciador-de-saloes.netlify.app/dashboard" class="button">
                     Acessar Dashboard
                 </a>
             </div>
