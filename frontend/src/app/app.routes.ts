@@ -105,6 +105,22 @@ export const routes: Routes = [
           ),
         canActivate: [ownerGuard, emailVerifiedGuard],
       },
+      {
+        path: 'plans',
+        loadComponent: () =>
+          import('./components/plans/plans.component').then(
+            (m) => m.PlansComponent
+          ),
+        canActivate: [ownerGuard, emailVerifiedGuard],
+      },
+      {
+        path: 'payment/:planId',
+        loadComponent: () =>
+          import('./components/payment/payment.component').then(
+            (m) => m.PaymentComponent
+          ),
+        canActivate: [ownerGuard, emailVerifiedGuard],
+      },
     ],
   },
   {
