@@ -58,10 +58,12 @@ class PaymentController extends Controller
             'plan_id' => ['required', 'integer', 'exists:plans,id'],
             'payment_method' => ['required', 'in:pix,boleto,credit_card'],
             'credit_card' => ['required_if:payment_method,credit_card', 'array'],
-            'credit_card.token' => ['required_if:payment_method,credit_card', 'string'], // Token criado pelo SDK do Mercado Pago no frontend
-            'credit_card.number' => ['sometimes', 'string'], // Para referência/detecção de tipo
+            'credit_card.token' => ['required_if:payment_method,credit_card', 'string'], // Token criado no frontend
+            'credit_card.number' => ['sometimes', 'string'], // Opcional - não é necessário quando usamos token
             'credit_card.name' => ['sometimes', 'string'],
             'credit_card.cpf' => ['required_if:payment_method,credit_card', 'string'], // CPF necessário para cartão
+            'credit_card.expiry_month' => ['required_if:payment_method,credit_card', 'string'], // Necessário mesmo com token (limitação da API)
+            'credit_card.expiry_year' => ['required_if:payment_method,credit_card', 'string'], // Necessário mesmo com token (limitação da API)
             'installments' => ['sometimes', 'integer', 'min:1', 'max:12'],
         ]);
 

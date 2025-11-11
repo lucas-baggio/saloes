@@ -5,25 +5,48 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\Plan;
 use Exception;
-use MercadoPago\Client\Payment\PaymentClient;
-use MercadoPago\MercadoPagoConfig;
 
 class MercadoPagoService
 {
-    private PaymentClient $paymentClient;
+    private $paymentClient;
+    private bool $isAvailable = false;
 
     public function __construct()
     {
+        // Verifica se as classes do Mercado Pago estão disponíveis
+        if (!class_exists(\MercadoPago\MercadoPagoConfig::class)) {
+            \Log::error('SDK do Mercado Pago não está instalado. Execute: composer require mercadopago/dx-php');
+            return;
+        }
+
         $accessToken = config('services.mercadopago.access_token');
 
         if (!$accessToken) {
-            throw new Exception('Mercado Pago access token não configurado');
+            \Log::error('Mercado Pago access token não configurado');
+            return;
         }
 
-        MercadoPagoConfig::setAccessToken($accessToken);
-        MercadoPagoConfig::setRuntimeEnviroment(MercadoPagoConfig::LOCAL);
+        try {
+            \MercadoPago\MercadoPagoConfig::setAccessToken($accessToken);
+            \MercadoPago\MercadoPagoConfig::setRuntimeEnviroment(\MercadoPago\MercadoPagoConfig::LOCAL);
 
-        $this->paymentClient = new PaymentClient();
+            $this->paymentClient = new \MercadoPago\Client\Payment\PaymentClient();
+            $this->isAvailable = true;
+        } catch (\Exception $e) {
+            \Log::error('Erro ao inicializar MercadoPagoService', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Verifica se o serviço está disponível
+     */
+    private function checkAvailability(): void
+    {
+        if (!$this->isAvailable) {
+            throw new Exception('Mercado Pago SDK não está disponível. Verifique se o pacote está instalado (composer require mercadopago/dx-php) e se o access_token está configurado.');
+        }
     }
 
     /**
@@ -32,6 +55,8 @@ class MercadoPagoService
     public function createPixPayment(Payment $payment, Plan $plan): array
     {
         try {
+            $this->checkAvailability();
+
             // Log dos dados que serão enviados
             \Log::info('Criando pagamento PIX no Mercado Pago', [
                 'payment_id' => $payment->id,
@@ -168,6 +193,8 @@ class MercadoPagoService
     public function createBoletoPayment(Payment $payment, Plan $plan): array
     {
         try {
+            $this->checkAvailability();
+
             $mpPayment = $this->paymentClient->create([
                 'transaction_amount' => (float) $plan->price,
                 'description' => "Plano {$plan->name}",
@@ -209,33 +236,112 @@ class MercadoPagoService
     public function createCreditCardPayment(Payment $payment, Plan $plan, array $cardData, int $installments = 1): array
     {
         try {
+            $this->checkAvailability();
+
             // O token deve vir do frontend (criado pelo SDK do Mercado Pago)
-            if (!isset($cardData['token'])) {
+            if (!isset($cardData['token']) || empty($cardData['token'])) {
+                \Log::error('Token do cartão não fornecido', [
+                    'payment_id' => $payment->id,
+                    'card_data_keys' => array_keys($cardData),
+                ]);
                 return [
                     'success' => false,
                     'error' => 'Token do cartão não fornecido. Use o SDK do Mercado Pago no frontend para criar o token.',
                 ];
             }
 
-            $mpPayment = $this->paymentClient->create([
+            // Quando usamos token, o Mercado Pago ainda exige expiration_month e expiration_year
+            // mesmo que eles estejam no token. Isso é uma limitação/bug da API do Mercado Pago.
+            // Precisamos extrair esses dados do token ou solicitá-los novamente do frontend.
+
+            // Valida e formata CPF
+            $cpf = $cardData['cpf'] ?? '00000000000';
+            $cpf = preg_replace('/\D/', '', $cpf);
+            if (strlen($cpf) !== 11) {
+                \Log::warning('CPF inválido ou não fornecido', [
+                    'payment_id' => $payment->id,
+                    'cpf_length' => strlen($cpf),
+                ]);
+                // Para testes no sandbox, podemos usar um CPF padrão
+                $cpf = '00000000000';
+            }
+
+            // Prepara os dados do pagamento
+            // IMPORTANTE: Conforme os testes do SDK do Mercado Pago, quando usamos token:
+            // - Enviamos apenas token, transaction_amount, description, installments, payer
+            // - NÃO enviamos expiration_month/expiration_year (já estão no token)
+            // - Podemos enviar payment_method_id para ajudar na detecção
+            //
+            // NOTA: Se a API reclamar que expiration_month está faltando, o problema pode ser:
+            // 1. O token não foi criado corretamente no frontend
+            // 2. O token não contém os dados de expiração
+            // 3. Incompatibilidade entre public key (frontend) e access token (backend) - teste vs produção
+            $paymentRequest = [
                 'transaction_amount' => (float) $plan->price,
                 'description' => "Plano {$plan->name}",
-                'payment_method_id' => $this->detectCardType($cardData['number']),
                 'installments' => $installments,
+                'payment_method_id' => 'credit_card', // Tipo genérico - ajuda na detecção automática
                 'payer' => [
                     'email' => $payment->user->email,
                     'identification' => [
                         'type' => 'CPF',
-                        'number' => $cardData['cpf'] ?? '00000000000',
+                        'number' => $cpf,
                     ],
                 ],
                 'token' => $cardData['token'],
+                'statement_descriptor' => 'SALOES',
                 'metadata' => [
-                    'payment_id' => $payment->id,
-                    'plan_id' => $plan->id,
-                    'user_id' => $payment->user_id,
+                    'payment_id' => (string) $payment->id,
+                    'plan_id' => (string) $plan->id,
+                    'user_id' => (string) $payment->user_id,
                 ],
+            ];
+
+            \Log::info('Requisição de pagamento preparada (sem campos de expiração)', [
+                'payment_id' => $payment->id,
+                'has_token' => !empty($cardData['token']),
+                'token_length' => strlen($cardData['token'] ?? ''),
+                'token_preview' => substr($cardData['token'] ?? '', 0, 8) . '...' . substr($cardData['token'] ?? '', -4),
+                'card_data_keys' => array_keys($cardData),
+                'payment_request_keys' => array_keys($paymentRequest),
             ]);
+
+            // Valida que o token não está vazio
+            if (empty($cardData['token']) || strlen($cardData['token']) < 10) {
+                \Log::error('Token do cartão inválido ou muito curto', [
+                    'payment_id' => $payment->id,
+                    'token_length' => strlen($cardData['token'] ?? ''),
+                ]);
+                return [
+                    'success' => false,
+                    'error' => 'Token do cartão inválido. Por favor, tente novamente.',
+                ];
+            }
+
+            \Log::info('Criando pagamento com cartão de crédito no Mercado Pago', [
+                'payment_id' => $payment->id,
+                'plan_id' => $plan->id,
+                'amount' => $plan->price,
+                'installments' => $installments,
+                'has_token' => !empty($cardData['token']),
+                'token_length' => strlen($cardData['token']),
+                'token_preview' => substr($cardData['token'], 0, 8) . '...' . substr($cardData['token'], -4),
+                'cpf' => substr($cpf, 0, 3) . '***' . substr($cpf, -2),
+                'access_token_preview' => substr(config('services.mercadopago.access_token'), 0, 10) . '...',
+                'payment_request_keys' => array_keys($paymentRequest), // Log apenas as chaves da requisição
+            ]);
+
+            try {
+                $mpPayment = $this->paymentClient->create($paymentRequest);
+            } catch (\Exception $createException) {
+                \Log::error('Exceção ao criar pagamento no Mercado Pago', [
+                    'payment_id' => $payment->id,
+                    'exception_class' => get_class($createException),
+                    'exception_message' => $createException->getMessage(),
+                    'exception_trace' => $createException->getTraceAsString(),
+                ]);
+                throw $createException;
+            }
 
             return [
                 'success' => true,
@@ -243,7 +349,106 @@ class MercadoPagoService
                 'status' => $this->mapStatus($mpPayment->status),
                 'transaction_id' => $mpPayment->id,
             ];
+        } catch (\MercadoPago\Exceptions\MPApiException $e) {
+            // Captura erros específicos da API do Mercado Pago
+            $errorDetails = [
+                'payment_id' => $payment->id,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'status_code' => $e->getStatusCode(),
+                'card_data' => [
+                    'has_token' => isset($cardData['token']),
+                    'token_length' => isset($cardData['token']) ? strlen($cardData['token']) : 0,
+                    'has_number' => isset($cardData['number']),
+                    'has_cpf' => isset($cardData['cpf']),
+                    'installments' => $installments,
+                ],
+            ];
+
+            // Obtém a resposta da API
+            try {
+                $apiResponse = $e->getApiResponse();
+                if ($apiResponse) {
+                    $errorContent = $apiResponse->getContent();
+                    $errorDetails['response_content'] = $errorContent;
+                    $errorDetails['status_code'] = $apiResponse->getStatusCode();
+                }
+            } catch (\Exception $ex) {
+                $errorDetails['response_error'] = $ex->getMessage();
+            }
+
+            \Log::error('Erro ao processar pagamento com cartão de crédito (MPApiException)', $errorDetails);
+
+            // Tenta extrair mensagem de erro mais detalhada
+            $errorMessage = $e->getMessage();
+            if (isset($errorDetails['response_content']) && is_array($errorDetails['response_content'])) {
+                $errorData = $errorDetails['response_content'];
+
+                // Tenta extrair mensagem de erro
+                if (isset($errorData['message'])) {
+                    $errorMessage = $errorData['message'];
+                } elseif (isset($errorData['error'])) {
+                    $errorMessage = $errorData['error'];
+                }
+
+                // Tenta extrair causas do erro
+                if (isset($errorData['cause']) && is_array($errorData['cause'])) {
+                    $causes = [];
+                    foreach ($errorData['cause'] as $cause) {
+                        if (is_array($cause)) {
+                            $description = $cause['description'] ?? $cause['code'] ?? '';
+                            if ($description) {
+                                $causes[] = $description;
+                            }
+                        } else {
+                            $causes[] = (string) $cause;
+                        }
+                    }
+                    if (!empty($causes)) {
+                        $errorMessage .= ': ' . implode(', ', array_filter($causes));
+                    }
+                }
+            }
+
+            return [
+                'success' => false,
+                'error' => $errorMessage,
+            ];
+        } catch (\MercadoPago\Exceptions\MercadoPagoException $e) {
+            // Captura outros tipos de exceções do Mercado Pago
+            \Log::error('Erro ao processar pagamento com cartão de crédito (MercadoPagoException)', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'card_data' => [
+                    'has_token' => isset($cardData['token']),
+                    'token_length' => isset($cardData['token']) ? strlen($cardData['token']) : 0,
+                    'has_number' => isset($cardData['number']),
+                    'has_cpf' => isset($cardData['cpf']),
+                    'installments' => $installments,
+                ],
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
         } catch (Exception $e) {
+            // Captura outros tipos de exceções
+            \Log::error('Erro ao processar pagamento com cartão de crédito (Exception)', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+                'card_data' => [
+                    'has_token' => isset($cardData['token']),
+                    'token_length' => isset($cardData['token']) ? strlen($cardData['token']) : 0,
+                    'has_number' => isset($cardData['number']),
+                    'has_cpf' => isset($cardData['cpf']),
+                    'installments' => $installments,
+                ],
+            ]);
+
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -257,6 +462,8 @@ class MercadoPagoService
     public function getPaymentStatus(string $paymentId): ?array
     {
         try {
+            $this->checkAvailability();
+
             $mpPayment = $this->paymentClient->get($paymentId);
 
             return [
