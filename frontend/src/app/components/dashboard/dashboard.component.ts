@@ -296,11 +296,23 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             },
           },
           scales: {
+            x: {
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45,
+                font: {
+                  size: 10,
+                },
+              },
+            },
             y: {
               beginAtZero: true,
               ticks: {
                 callback: (value) => {
                   return this.formatCurrency(value as number);
+                },
+                font: {
+                  size: 10,
                 },
               },
             },
@@ -371,11 +383,23 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             },
           },
           scales: {
+            x: {
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45,
+                font: {
+                  size: 10,
+                },
+              },
+            },
             y: {
               beginAtZero: true,
               ticks: {
                 callback: (value) => {
                   return this.formatCurrency(value as number);
+                },
+                font: {
+                  size: 10,
                 },
               },
             },
@@ -444,6 +468,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         plugins: {
           legend: {
             position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              padding: 8,
+              font: {
+                size: 11,
+              },
+            },
           },
           tooltip: {
             callbacks: {

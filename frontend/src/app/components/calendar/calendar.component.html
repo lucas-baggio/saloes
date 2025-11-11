@@ -1,6 +1,8 @@
 <div class="px-4 sm:px-6 lg:px-8">
   <!-- Header -->
-  <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+  <div
+    class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4"
+  >
     <div>
       <h1 class="text-3xl font-bold text-gray-900">Calendário</h1>
       <p class="mt-2 text-sm text-gray-600">Visualize seus agendamentos</p>
@@ -72,7 +74,9 @@
   </div>
   } @else {
   <!-- Calendar Grid -->
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+  <div
+    class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+  >
     <!-- Week Days Header -->
     <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
       @for (day of weekDays; track day) {
@@ -89,8 +93,12 @@
         class="min-h-[100px] sm:min-h-[120px] border-r border-b border-gray-200 p-2 transition-colors hover:bg-gray-50 cursor-pointer"
         [class.bg-blue-50]="day.isToday"
         [class.bg-gray-50]="!day.isCurrentMonth"
-        [class.border-primary-500]="selectedDate && day.date.getTime() === selectedDate.getTime()"
-        [class.border-2]="selectedDate && day.date.getTime() === selectedDate.getTime()"
+        [class.border-primary-500]="
+          selectedDate && day.date.getTime() === selectedDate.getTime()
+        "
+        [class.border-2]="
+          selectedDate && day.date.getTime() === selectedDate.getTime()
+        "
         (click)="selectDate(day)"
       >
         <!-- Day Number -->
@@ -105,20 +113,24 @@
 
         <!-- Schedulings -->
         <div class="space-y-1">
-          @for (scheduling of day.schedulings.slice(0, 3); track scheduling.id) {
+          @for (scheduling of day.schedulings.slice(0, 3); track scheduling.id)
+          {
           <div
             class="text-xs px-2 py-1 rounded border cursor-pointer transition-colors hover:opacity-80"
             [ngClass]="getStatusColor(scheduling.status || 'pending')"
             (click)="selectScheduling(scheduling); $event.stopPropagation()"
-            [title]="scheduling.client_name + ' - ' + formatTime(scheduling.scheduled_time)"
+            [title]="
+              scheduling.client_name +
+              ' - ' +
+              formatTime(scheduling.scheduled_time)
+            "
           >
             <div class="font-medium truncate">
               {{ formatTime(scheduling.scheduled_time) }}
             </div>
             <div class="truncate">{{ scheduling.client_name }}</div>
           </div>
-          }
-          @if (day.schedulings.length > 3) {
+          } @if (day.schedulings.length > 3) {
           <div
             class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 border border-gray-300"
           >
@@ -151,7 +163,12 @@
         (click)="selectedDate = null; selectedScheduling = null"
         class="text-gray-400 hover:text-gray-600"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -168,7 +185,8 @@
     </p>
     } @else {
     <div class="space-y-3">
-      @for (scheduling of getSchedulingsForDate(selectedDate); track scheduling.id) {
+      @for (scheduling of getSchedulingsForDate(selectedDate); track
+      scheduling.id) {
       <div
         class="p-4 rounded-lg border-2 transition-all cursor-pointer hover:shadow-md"
         [class.border-primary-500]="selectedScheduling?.id === scheduling.id"
@@ -185,7 +203,7 @@
                 class="px-2 py-1 text-xs font-medium rounded border"
                 [ngClass]="getStatusColor(scheduling.status || 'pending')"
               >
-                {{ getStatusLabel(scheduling.status || 'pending') }}
+                {{ getStatusLabel(scheduling.status || "pending") }}
               </span>
             </div>
             <h4 class="text-base font-medium text-gray-900 mb-1">
@@ -195,8 +213,7 @@
             <p class="text-sm text-gray-600">
               {{ scheduling.service.name }}
             </p>
-            }
-            @if (scheduling.establishment) {
+            } @if (scheduling.establishment) {
             <p class="text-xs text-gray-500 mt-1">
               {{ scheduling.establishment.name }}
             </p>
@@ -223,12 +240,13 @@
       <!-- Header -->
       <div class="flex justify-between items-start mb-4">
         <div>
-          <h3 class="text-xl font-bold text-gray-900">Detalhes do Agendamento</h3>
+          <h3 class="text-xl font-bold text-gray-900">
+            Detalhes do Agendamento
+          </h3>
           <p class="text-sm text-gray-500 mt-1">
             {{
               selectedScheduling.scheduled_date
-                | date: 'EEEE, dd \'de\' MMMM \'de\' yyyy'
-                : 'pt-BR'
+                | date : "EEEE, dd 'de' MMMM 'de' yyyy" : "pt-BR"
             }}
           </p>
         </div>
@@ -236,7 +254,12 @@
           (click)="closeSchedulingDetails()"
           class="text-gray-400 hover:text-gray-600 transition-colors"
         >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -278,7 +301,7 @@
             class="px-3 py-1 text-sm font-medium rounded-full border"
             [ngClass]="getStatusColor(selectedScheduling.status || 'pending')"
           >
-            {{ getStatusLabel(selectedScheduling.status || 'pending') }}
+            {{ getStatusLabel(selectedScheduling.status || "pending") }}
           </span>
         </div>
 
@@ -295,11 +318,11 @@
         <div class="border-t border-gray-200 pt-4">
           <p class="text-sm text-gray-500 mb-1">Serviço</p>
           <p class="text-base font-medium text-gray-900">
-            {{ selectedScheduling.service.name }}
+            {{ selectedScheduling.service?.name }}
           </p>
-          @if (selectedScheduling.service.price) {
+          @if (selectedScheduling.service?.price) {
           <p class="text-sm text-primary-600 font-semibold mt-1">
-            {{ formatCurrency(selectedScheduling.service.price) }}
+            {{ formatCurrency(selectedScheduling.service?.price || 0) }}
           </p>
           }
         </div>
@@ -320,7 +343,7 @@
         <div class="border-t border-gray-200 pt-4">
           <p class="text-sm text-gray-500 mb-1">Funcionário Responsável</p>
           <p class="text-base font-medium text-gray-900">
-            {{ selectedScheduling.service.user.name }}
+            {{ selectedScheduling.service?.user?.name }}
           </p>
         </div>
         }
@@ -330,7 +353,7 @@
         <div class="border-t border-gray-200 pt-4">
           <p class="text-sm text-gray-500 mb-1">Descrição do Serviço</p>
           <p class="text-sm text-gray-700">
-            {{ selectedScheduling.service.description }}
+            {{ selectedScheduling.service?.description }}
           </p>
         </div>
         }

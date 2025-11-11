@@ -1,21 +1,23 @@
-<div class="px-4 sm:px-6 lg:px-8">
-  <div class="mb-8 flex justify-between items-center">
+<div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+  <div
+    class="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4"
+  >
     <div>
-      <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
-      <p class="mt-2 text-sm text-gray-600">
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+      <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
         Bem-vindo, {{ authService.getCurrentUser()?.name }}!
       </p>
     </div>
 
     <!-- Period Selector - Apenas para não funcionários -->
-    <div *ngIf="!isEmployee" class="flex space-x-2">
+    <div *ngIf="!isEmployee" class="flex flex-wrap gap-2">
       <button
         (click)="changePeriod('day')"
         [class.bg-primary-600]="selectedPeriod === 'day'"
         [class.text-white]="selectedPeriod === 'day'"
         [class.bg-gray-200]="selectedPeriod !== 'day'"
         [class.text-gray-700]="selectedPeriod !== 'day'"
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
       >
         Hoje
       </button>
@@ -25,7 +27,7 @@
         [class.text-white]="selectedPeriod === 'week'"
         [class.bg-gray-200]="selectedPeriod !== 'week'"
         [class.text-gray-700]="selectedPeriod !== 'week'"
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
       >
         Semana
       </button>
@@ -35,7 +37,7 @@
         [class.text-white]="selectedPeriod === 'month'"
         [class.bg-gray-200]="selectedPeriod !== 'month'"
         [class.text-gray-700]="selectedPeriod !== 'month'"
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
       >
         Mês
       </button>
@@ -45,7 +47,7 @@
         [class.text-white]="selectedPeriod === 'year'"
         [class.bg-gray-200]="selectedPeriod !== 'year'"
         [class.text-gray-700]="selectedPeriod !== 'year'"
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
       >
         Ano
       </button>
@@ -60,23 +62,25 @@
   </div>
 
   <!-- Dashboard para Funcionários -->
-  <div *ngIf="!loading && isEmployee" class="space-y-6">
+  <div *ngIf="!loading && isEmployee" class="space-y-4 sm:space-y-6">
     <!-- Cards de Estatísticas -->
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+    <div
+      class="grid grid-cols-1 gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+    >
       <!-- Total de Agendamentos -->
       <div class="card hover:shadow-lg transition-shadow">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">
               Total de Agendamentos
             </p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">
+            <p class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
               {{ totalSchedulings }}
             </p>
           </div>
-          <div class="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-blue-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-blue-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-blue-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -95,17 +99,17 @@
       <!-- Agendamentos Passados -->
       <div class="card hover:shadow-lg transition-shadow">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">
               Agendamentos Passados
             </p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">
+            <p class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
               {{ pastSchedulings.length }}
             </p>
           </div>
-          <div class="flex-shrink-0 bg-gray-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-gray-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-gray-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-gray-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -124,17 +128,17 @@
       <!-- Agendamentos de Hoje -->
       <div class="card hover:shadow-lg transition-shadow">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">
               Agendamentos de Hoje
             </p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">
+            <p class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
               {{ todaySchedulings.length }}
             </p>
           </div>
-          <div class="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-blue-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-blue-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-blue-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -153,17 +157,17 @@
       <!-- Agendamentos Futuros -->
       <div class="card hover:shadow-lg transition-shadow">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">
               Agendamentos Futuros
             </p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">
+            <p class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
               {{ futureSchedulings.length }}
             </p>
           </div>
-          <div class="flex-shrink-0 bg-green-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-green-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-green-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-green-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -182,16 +186,20 @@
       <!-- Serviços Mais Vendidos -->
       <div class="card hover:shadow-lg transition-shadow">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Tipos de Serviço</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">
+              Tipos de Serviço
+            </p>
+            <p class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
               {{ employeeTopServices.length }}
             </p>
-            <p class="text-xs text-gray-500 mt-2">Diferentes serviços</p>
+            <p class="text-xs text-gray-500 mt-1 sm:mt-2 hidden sm:block">
+              Diferentes serviços
+            </p>
           </div>
-          <div class="flex-shrink-0 bg-purple-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-purple-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-purple-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-purple-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -210,13 +218,16 @@
 
     <!-- Serviços Mais Vendidos -->
     <div class="card">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">
+      <h2 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
         Serviços Mais Vendidos
       </h2>
-      <div *ngIf="employeeTopServices.length > 0" class="space-y-4">
+      <div
+        *ngIf="employeeTopServices.length > 0"
+        class="space-y-3 sm:space-y-4"
+      >
         <div
           *ngFor="let service of employeeTopServices; let i = index"
-          class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+          class="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg"
         >
           <div class="flex items-center space-x-3">
             <div
@@ -228,12 +239,16 @@
             >
               {{ i + 1 }}
             </div>
-            <div>
-              <p class="font-medium text-gray-900">{{ service.name }}</p>
+            <div class="flex-1 min-w-0">
+              <p
+                class="font-medium text-gray-900 text-sm sm:text-base truncate"
+              >
+                {{ service.name }}
+              </p>
             </div>
           </div>
-          <div class="text-right">
-            <p class="font-semibold text-gray-900">
+          <div class="text-right flex-shrink-0 ml-2">
+            <p class="font-semibold text-gray-900 text-xs sm:text-sm">
               {{ service.count }} {{ service.count === 1 ? "venda" : "vendas" }}
             </p>
           </div>
@@ -241,7 +256,7 @@
       </div>
       <div
         *ngIf="employeeTopServices.length === 0"
-        class="text-center py-8 text-gray-500"
+        class="text-center py-6 sm:py-8 text-xs sm:text-sm text-gray-500"
       >
         Nenhum serviço vendido ainda
       </div>
@@ -249,25 +264,29 @@
 
     <!-- Agendamentos de Hoje -->
     <div class="card">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">
+      <h2 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
         Agendamentos de Hoje
       </h2>
-      <div *ngIf="todaySchedulings.length > 0" class="space-y-4">
+      <div *ngIf="todaySchedulings.length > 0" class="space-y-3 sm:space-y-4">
         <div
           *ngFor="let scheduling of todaySchedulings"
-          class="border border-blue-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-blue-50"
+          class="border border-blue-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow bg-blue-50"
         >
           <div
-            class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4"
+            class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4"
           >
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            <div class="flex-1 min-w-0">
+              <h3
+                class="text-base sm:text-lg font-semibold text-gray-900 mb-2 truncate"
+              >
                 {{
                   scheduling.service?.name ||
                     getServiceName(scheduling.service_id)
                 }}
               </h3>
-              <div class="space-y-2 text-sm text-gray-600">
+              <div
+                class="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-600"
+              >
                 <div class="flex items-center">
                   <svg
                     class="h-4 w-4 mr-2 flex-shrink-0"
@@ -323,7 +342,7 @@
       </div>
       <div
         *ngIf="todaySchedulings.length === 0"
-        class="text-center py-8 text-gray-500"
+        class="text-center py-6 sm:py-8 text-xs sm:text-sm text-gray-500"
       >
         <p>Nenhum agendamento para hoje.</p>
       </div>
@@ -331,25 +350,29 @@
 
     <!-- Agendamentos Futuros -->
     <div class="card">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">
+      <h2 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
         Próximos Agendamentos
       </h2>
-      <div *ngIf="futureSchedulings.length > 0" class="space-y-4">
+      <div *ngIf="futureSchedulings.length > 0" class="space-y-3 sm:space-y-4">
         <div
           *ngFor="let scheduling of futureSchedulings"
-          class="border border-green-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-green-50"
+          class="border border-green-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow bg-green-50"
         >
           <div
-            class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4"
+            class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4"
           >
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            <div class="flex-1 min-w-0">
+              <h3
+                class="text-base sm:text-lg font-semibold text-gray-900 mb-2 truncate"
+              >
                 {{
                   scheduling.service?.name ||
                     getServiceName(scheduling.service_id)
                 }}
               </h3>
-              <div class="space-y-2 text-sm text-gray-600">
+              <div
+                class="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-600"
+              >
                 <div class="flex items-center">
                   <svg
                     class="h-4 w-4 mr-2 flex-shrink-0"
@@ -405,12 +428,12 @@
       </div>
       <div
         *ngIf="futureSchedulings.length === 0"
-        class="text-center py-8 text-gray-500"
+        class="text-center py-6 sm:py-8 text-xs sm:text-sm text-gray-500"
       >
         <p>Nenhum agendamento futuro no momento.</p>
         <a
           routerLink="/schedulings"
-          class="text-primary-600 hover:text-primary-500 font-medium mt-2 inline-block"
+          class="text-xs sm:text-sm text-primary-600 hover:text-primary-500 font-medium mt-2 inline-block"
         >
           Criar agendamento →
         </a>
@@ -419,25 +442,29 @@
 
     <!-- Agendamentos Passados -->
     <div class="card">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">
+      <h2 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
         Agendamentos Passados
       </h2>
-      <div *ngIf="pastSchedulings.length > 0" class="space-y-4">
+      <div *ngIf="pastSchedulings.length > 0" class="space-y-3 sm:space-y-4">
         <div
           *ngFor="let scheduling of pastSchedulings"
-          class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-gray-50"
+          class="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow bg-gray-50"
         >
           <div
-            class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4"
+            class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4"
           >
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            <div class="flex-1 min-w-0">
+              <h3
+                class="text-base sm:text-lg font-semibold text-gray-900 mb-2 truncate"
+              >
                 {{
                   scheduling.service?.name ||
                     getServiceName(scheduling.service_id)
                 }}
               </h3>
-              <div class="space-y-2 text-sm text-gray-600">
+              <div
+                class="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-600"
+              >
                 <div class="flex items-center">
                   <svg
                     class="h-4 w-4 mr-2 flex-shrink-0"
@@ -493,7 +520,7 @@
       </div>
       <div
         *ngIf="pastSchedulings.length === 0"
-        class="text-center py-8 text-gray-500"
+        class="text-center py-6 sm:py-8 text-xs sm:text-sm text-gray-500"
       >
         <p>Nenhum agendamento passado registrado.</p>
       </div>
@@ -501,35 +528,35 @@
   </div>
 
   <!-- Dashboard para Owners e Admins -->
-  <div *ngIf="!loading && !isEmployee && stats" class="space-y-6">
+  <div *ngIf="!loading && !isEmployee && stats" class="space-y-4 sm:space-y-6">
     <!-- Main Stats Cards -->
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-4">
       <!-- Agendamentos (Vendas) -->
       <div class="card hover:shadow-lg transition-shadow">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Agendamentos</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600">
+              Agendamentos
+            </p>
+            <p class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
               {{ stats.schedulings.total }}
             </p>
-            <div class="mt-2 flex items-center">
+            <div class="mt-2 flex flex-wrap items-center gap-1">
               <span
                 [class]="
-                  'text-sm font-medium ' +
+                  'text-xs sm:text-sm font-medium ' +
                   getGrowthColor(stats.schedulings.growth)
                 "
               >
                 {{ getGrowthIcon(stats.schedulings.growth) }}
                 {{ Math.abs(stats.schedulings.growth) }}%
               </span>
-              <span class="text-xs text-gray-500 ml-2"
-                >vs período anterior</span
-              >
+              <span class="text-xs text-gray-500">vs período anterior</span>
             </div>
           </div>
-          <div class="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-blue-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-blue-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-blue-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -548,28 +575,31 @@
       <!-- Receita Total - Não mostrar para funcionários -->
       <div *ngIf="!isEmployee" class="card hover:shadow-lg transition-shadow">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Receita Total</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600">
+              Receita Total
+            </p>
+            <p
+              class="text-lg sm:text-2xl font-bold text-gray-900 mt-1 break-words"
+            >
               {{ formatCurrency(stats.revenue.total) }}
             </p>
-            <div class="mt-2 flex items-center">
+            <div class="mt-2 flex flex-wrap items-center gap-1">
               <span
                 [class]="
-                  'text-sm font-medium ' + getGrowthColor(stats.revenue.growth)
+                  'text-xs sm:text-sm font-medium ' +
+                  getGrowthColor(stats.revenue.growth)
                 "
               >
                 {{ getGrowthIcon(stats.revenue.growth) }}
                 {{ Math.abs(stats.revenue.growth) }}%
               </span>
-              <span class="text-xs text-gray-500 ml-2"
-                >vs período anterior</span
-              >
+              <span class="text-xs text-gray-500">vs período anterior</span>
             </div>
           </div>
-          <div class="flex-shrink-0 bg-green-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-green-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-green-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-green-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -588,16 +618,18 @@
       <!-- Ticket Médio - Não mostrar para funcionários -->
       <div *ngIf="!isEmployee" class="card hover:shadow-lg transition-shadow">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Ticket Médio</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600">
+              Ticket Médio
+            </p>
+            <p class="text-lg sm:text-2xl font-bold text-gray-900 mt-1">
               {{ formatCurrency(stats.average_ticket) }}
             </p>
-            <p class="text-xs text-gray-500 mt-2">Por agendamento</p>
+            <p class="text-xs text-gray-500 mt-1 sm:mt-2">Por agendamento</p>
           </div>
-          <div class="flex-shrink-0 bg-purple-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-purple-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-purple-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-purple-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -616,23 +648,25 @@
       <!-- Estabelecimentos - Não mostrar para funcionários -->
       <div *ngIf="!isEmployee" class="card hover:shadow-lg transition-shadow">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Estabelecimentos</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600">
+              Estabelecimentos
+            </p>
+            <p class="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
               {{ stats.establishments }}
             </p>
             <div class="mt-2">
               <a
                 routerLink="/establishments"
-                class="text-sm text-primary-600 hover:text-primary-500 font-medium"
+                class="text-xs sm:text-sm text-primary-600 hover:text-primary-500 font-medium"
               >
                 Ver todos →
               </a>
             </div>
           </div>
-          <div class="flex-shrink-0 bg-orange-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-orange-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-orange-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-orange-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -650,18 +684,23 @@
     </div>
 
     <!-- Charts and Top Services - Não mostrar para funcionários -->
-    <div *ngIf="!isEmployee" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div
+      *ngIf="!isEmployee"
+      class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6"
+    >
       <!-- Revenue Chart -->
       <div class="card">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">
+        <h2
+          class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4"
+        >
           Receita ao Longo do Tempo
         </h2>
-        <div class="h-64">
+        <div class="h-48 sm:h-64">
           <canvas #revenueChartCanvas></canvas>
         </div>
         <div
           *ngIf="!revenueChart || revenueChart.labels.length === 0"
-          class="text-center py-8 text-gray-500"
+          class="text-center py-6 sm:py-8 text-xs sm:text-sm text-gray-500"
         >
           Nenhum dado disponível para o período selecionado
         </div>
@@ -669,25 +708,29 @@
 
       <!-- Status Chart -->
       <div class="card">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">
+        <h2
+          class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4"
+        >
           Agendamentos por Status
         </h2>
-        <div class="h-64">
+        <div class="h-48 sm:h-64">
           <canvas #statusChartCanvas></canvas>
         </div>
       </div>
 
       <!-- Top Services Chart -->
-      <div class="card">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">
+      <div class="card lg:col-span-2">
+        <h2
+          class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4"
+        >
           Top Serviços por Receita
         </h2>
-        <div class="h-64">
+        <div class="h-48 sm:h-64">
           <canvas #servicesChartCanvas></canvas>
         </div>
         <div
           *ngIf="topServices.length === 0"
-          class="text-center py-8 text-gray-500"
+          class="text-center py-6 sm:py-8 text-xs sm:text-sm text-gray-500"
         >
           Nenhum serviço vendido no período selecionado
         </div>
@@ -695,19 +738,26 @@
     </div>
 
     <!-- Additional Stats - Não mostrar para funcionários -->
-    <div *ngIf="!isEmployee" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div
+      *ngIf="!isEmployee"
+      class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6"
+    >
       <!-- Services Count -->
       <div class="card">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Total de Serviços</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600">
+              Total de Serviços
+            </p>
+            <p
+              class="text-2xl sm:text-3xl font-bold text-gray-900 mt-1 sm:mt-2"
+            >
               {{ stats.services }}
             </p>
           </div>
-          <div class="flex-shrink-0 bg-green-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-green-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-green-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-green-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -721,10 +771,10 @@
             </svg>
           </div>
         </div>
-        <div class="mt-4">
+        <div class="mt-3 sm:mt-4">
           <a
             routerLink="/services"
-            class="text-sm text-primary-600 hover:text-primary-500 font-medium"
+            class="text-xs sm:text-sm text-primary-600 hover:text-primary-500 font-medium"
           >
             Ver todos os serviços →
           </a>
@@ -734,9 +784,13 @@
       <!-- Period Info -->
       <div class="card">
         <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-600">Período Analisado</p>
-            <p class="text-lg font-semibold text-gray-900 mt-2">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs sm:text-sm font-medium text-gray-600">
+              Período Analisado
+            </p>
+            <p
+              class="text-base sm:text-lg font-semibold text-gray-900 mt-1 sm:mt-2 break-words"
+            >
               {{ formatDate(stats.start_date) }} -
               {{ formatDate(stats.end_date) }}
             </p>
@@ -744,9 +798,9 @@
               Comparado com período anterior
             </p>
           </div>
-          <div class="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+          <div class="flex-shrink-0 bg-blue-100 rounded-lg p-2 sm:p-3 ml-2">
             <svg
-              class="h-8 w-8 text-blue-600"
+              class="h-6 w-6 sm:h-8 sm:w-8 text-blue-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

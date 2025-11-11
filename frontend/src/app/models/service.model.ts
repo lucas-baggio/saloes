@@ -45,6 +45,14 @@ export interface Scheduling {
   service?: {
     id: number;
     name: string;
+    price?: number;
+    description?: string;
+    user?: {
+      id: number;
+      name: string;
+      email?: string;
+      role?: string;
+    };
   };
   establishment?: {
     id: number;

@@ -9,6 +9,7 @@ import {
 import { EstablishmentService } from '../../services/establishment.service';
 import { Establishment } from '../../models/establishment.model';
 import { AuthService } from '../../services/auth.service';
+import { AlertService } from '../../services/alert.service';
 
 @Component({
   selector: 'app-establishments',
@@ -29,6 +30,7 @@ export class EstablishmentsComponent implements OnInit {
   constructor(
     private establishmentService: EstablishmentService,
     private authService: AuthService,
+    private alertService: AlertService,
     private fb: FormBuilder
   ) {
     this.form = this.fb.group({
@@ -58,7 +60,8 @@ export class EstablishmentsComponent implements OnInit {
 
   openForm(establishment?: Establishment) {
     if (!this.isEmailVerified) {
-      alert(
+      this.alertService.warning(
+        'Email não verificado',
         'Você precisa verificar seu email para criar ou editar estabelecimentos.'
       );
       return;
@@ -99,28 +102,53 @@ export class EstablishmentsComponent implements OnInit {
 
       request.subscribe({
         next: () => {
+          this.alertService.success(
+            'Estabelecimento salvo',
+            this.editingId
+              ? 'O estabelecimento foi atualizado com sucesso.'
+              : 'O estabelecimento foi criado com sucesso.'
+          );
           this.loadEstablishments();
           this.closeForm();
         },
         error: (err) => {
           this.error = err.error?.message || 'Erro ao salvar estabelecimento';
           this.loading = false;
+          this.alertService.validationError(err);
         },
       });
     }
   }
 
   delete(id: number) {
-    if (confirm('Tem certeza que deseja excluir este estabelecimento?')) {
-      this.loading = true;
-      this.establishmentService.delete(id).subscribe({
-        next: () => {
-          this.loadEstablishments();
-        },
-        error: () => {
-          this.loading = false;
-        },
+    this.alertService
+      .confirm(
+        'Excluir Estabelecimento',
+        'Tem certeza que deseja excluir este estabelecimento? Esta ação não pode ser desfeita.',
+        'Excluir',
+        'Cancelar'
+      )
+      .then((result) => {
+        if (result.isConfirmed) {
+          this.loading = true;
+          this.establishmentService.delete(id).subscribe({
+            next: () => {
+              this.alertService.success(
+                'Estabelecimento excluído',
+                'O estabelecimento foi excluído com sucesso.'
+              );
+              this.loadEstablishments();
+            },
+            error: (err) => {
+              this.loading = false;
+              this.alertService.error(
+                'Erro ao excluir',
+                err.error?.message ||
+                  'Não foi possível excluir o estabelecimento.'
+              );
+            },
+          });
+        }
       });
-    }
   }
 }

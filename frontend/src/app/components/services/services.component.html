@@ -1,12 +1,16 @@
-<div class="px-4 sm:px-6 lg:px-8">
-  <div class="flex justify-between items-center mb-8">
+<div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+  <div
+    class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8"
+  >
     <div>
-      <h1 class="text-3xl font-bold text-gray-900">Serviços</h1>
-      <p class="mt-2 text-sm text-gray-600">Gerencie os serviços oferecidos</p>
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Serviços</h1>
+      <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
+        Gerencie os serviços oferecidos
+      </p>
     </div>
     <button
       (click)="openForm()"
-      class="btn btn-primary"
+      class="btn btn-primary w-full sm:w-auto text-sm sm:text-base"
       [disabled]="!isEmailVerified"
       [title]="
         !isEmailVerified ? 'Verifique seu email para criar serviços' : ''
@@ -19,46 +23,53 @@
   <!-- Form Modal -->
   <div
     *ngIf="showForm"
-    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
     (click)="closeForm()"
   >
     <div
-      class="relative top-10 mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-lg bg-white mb-10"
+      class="relative w-full max-w-2xl mx-auto p-4 sm:p-6 border shadow-lg rounded-lg bg-white"
       (click)="$event.stopPropagation()"
     >
-      <h2 class="text-xl font-bold mb-4">
+      <h2 class="text-lg sm:text-xl font-bold mb-4">
         {{ editingId ? "Editar" : "Novo" }} Serviço
       </h2>
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2"
+          <label
+            class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2"
             >Nome *</label
           >
           <input
             formControlName="name"
-            class="input"
+            class="input text-sm sm:text-base"
             placeholder="Ex: Corte Completo"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2"
+          <label
+            class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2"
             >Descrição</label
           >
           <textarea
             formControlName="description"
-            class="input"
+            class="input text-sm sm:text-base"
             rows="2"
             placeholder="Descrição do serviço"
           ></textarea>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2"
+          >
             Estabelecimento *
           </label>
-          <select formControlName="establishment_id" class="input">
+          <select
+            formControlName="establishment_id"
+            class="input text-sm sm:text-base"
+          >
             <option value="">Selecione um estabelecimento</option>
             <option *ngFor="let est of establishments" [value]="est.id">
               {{ est.name }}
@@ -67,10 +78,12 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2"
+          >
             Funcionário Responsável
           </label>
-          <select formControlName="user_id" class="input">
+          <select formControlName="user_id" class="input text-sm sm:text-base">
             <option value="">Nenhum (opcional)</option>
             <option *ngFor="let emp of employees" [value]="emp.id">
               {{ emp.name }}
@@ -80,14 +93,16 @@
 
         <!-- Subserviços -->
         <div class="border-t pt-4">
-          <div class="flex justify-between items-center mb-3">
-            <label class="block text-sm font-medium text-gray-700">
+          <div
+            class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3"
+          >
+            <label class="block text-xs sm:text-sm font-medium text-gray-700">
               Subserviços
             </label>
             <button
               type="button"
               (click)="addSubService()"
-              class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              class="text-xs sm:text-sm text-primary-600 hover:text-primary-700 font-medium"
             >
               + Adicionar Subserviço
             </button>
@@ -100,15 +115,15 @@
           <div *ngIf="subServices.length > 0" class="space-y-3 mb-3">
             <div
               *ngFor="let subService of subServices; let i = index"
-              class="flex gap-2 items-start p-3 bg-gray-50 rounded-lg"
+              class="flex flex-col sm:flex-row gap-2 items-start p-3 bg-gray-50 rounded-lg"
             >
-              <div class="flex-1 grid grid-cols-3 gap-2">
+              <div class="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
                   <input
                     type="text"
                     [(ngModel)]="subService.name"
                     [ngModelOptions]="{ standalone: true }"
-                    class="input text-sm"
+                    class="input text-xs sm:text-sm"
                     placeholder="Nome (ex: Corte de cabelo)"
                   />
                 </div>
@@ -117,7 +132,7 @@
                     type="text"
                     [(ngModel)]="subService.description"
                     [ngModelOptions]="{ standalone: true }"
-                    class="input text-sm"
+                    class="input text-xs sm:text-sm"
                     placeholder="Descrição (opcional)"
                   />
                 </div>
@@ -126,7 +141,7 @@
                     type="number"
                     [(ngModel)]="subService.price"
                     [ngModelOptions]="{ standalone: true }"
-                    class="input text-sm"
+                    class="input text-xs sm:text-sm"
                     placeholder="Preço"
                     step="0.01"
                     min="0"
@@ -136,11 +151,11 @@
               <button
                 type="button"
                 (click)="removeSubService(i)"
-                class="text-red-600 hover:text-red-700 mt-1"
+                class="text-red-600 hover:text-red-700 p-1 flex-shrink-0"
                 title="Remover"
               >
                 <svg
-                  class="h-5 w-5"
+                  class="h-4 w-4 sm:h-5 sm:w-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -157,12 +172,14 @@
           </div>
 
           <!-- Preço Total -->
-          <div class="bg-primary-50 p-3 rounded-lg">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-medium text-gray-700"
+          <div class="bg-primary-50 p-2 sm:p-3 rounded-lg">
+            <div
+              class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0"
+            >
+              <span class="text-xs sm:text-sm font-medium text-gray-700"
                 >Preço Total:</span
               >
-              <span class="text-lg font-bold text-primary-600">
+              <span class="text-base sm:text-lg font-bold text-primary-600">
                 {{ formatPrice(getTotalPrice()) }}
               </span>
             </div>
@@ -179,28 +196,36 @@
 
         <!-- Preço manual (se não tiver subserviços) -->
         <div *ngIf="subServices.length === 0">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2"
+          >
             Preço *
           </label>
           <input
             type="number"
             formControlName="price"
-            class="input"
+            class="input text-sm sm:text-base"
             placeholder="0.00"
             step="0.01"
             min="0"
           />
         </div>
 
-        <div class="flex space-x-3 pt-4 border-t">
+        <div
+          class="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:space-x-0 pt-4 border-t"
+        >
           <button
             type="submit"
-            class="btn btn-primary flex-1"
+            class="btn btn-primary flex-1 text-sm sm:text-base"
             [disabled]="form.invalid || loading"
           >
             {{ editingId ? "Atualizar" : "Criar" }}
           </button>
-          <button type="button" (click)="closeForm()" class="btn btn-secondary">
+          <button
+            type="button"
+            (click)="closeForm()"
+            class="btn btn-secondary text-sm sm:text-base"
+          >
             Cancelar
           </button>
         </div>
@@ -219,31 +244,34 @@
   <!-- List -->
   <div
     *ngIf="!loading && !showForm"
-    class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+    class="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3"
   >
     <div
       *ngFor="let service of services"
       class="card hover:shadow-lg transition-shadow"
     >
-      <div class="flex justify-between items-start mb-4">
-        <div class="flex-1">
-          <h3 class="text-xl font-semibold text-gray-900">
+      <div class="flex justify-between items-start mb-3 sm:mb-4 gap-2">
+        <div class="flex-1 min-w-0">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-900 truncate">
             {{ service.name }}
           </h3>
-          <p class="text-2xl font-bold text-primary-600 mt-2">
+          <p
+            class="text-xl sm:text-2xl font-bold text-primary-600 mt-1 sm:mt-2"
+          >
             {{ formatPrice(service.price) }}
           </p>
         </div>
-        <div class="flex space-x-2">
+        <div class="flex space-x-2 flex-shrink-0">
           <button
             (click)="openForm(service)"
             [disabled]="!isEmailVerified"
-            [title]="!isEmailVerified ? 'Verifique seu email para editar' : ''"
-            class="text-primary-600 hover:text-primary-700"
-            title="Editar"
+            [title]="
+              !isEmailVerified ? 'Verifique seu email para editar' : 'Editar'
+            "
+            class="text-primary-600 hover:text-primary-700 p-1"
           >
             <svg
-              class="h-5 w-5"
+              class="h-4 w-4 sm:h-5 sm:w-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -258,11 +286,11 @@
           </button>
           <button
             (click)="delete(service.id)"
-            class="text-red-600 hover:text-red-700"
+            class="text-red-600 hover:text-red-700 p-1"
             title="Excluir"
           >
             <svg
-              class="h-5 w-5"
+              class="h-4 w-4 sm:h-5 sm:w-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -277,7 +305,10 @@
           </button>
         </div>
       </div>
-      <p *ngIf="service.description" class="text-gray-600 text-sm mb-2">
+      <p
+        *ngIf="service.description"
+        class="text-gray-600 text-xs sm:text-sm mb-2 line-clamp-2"
+      >
         {{ service.description }}
       </p>
 
@@ -293,27 +324,36 @@
         <ul class="text-xs text-gray-600 space-y-1">
           <li
             *ngFor="let sub of service.sub_services || service.subServices"
-            class="flex justify-between"
+            class="flex justify-between gap-2"
           >
-            <span>{{ sub.name }}</span>
-            <span class="font-medium">{{ formatPrice(sub.price) }}</span>
+            <span class="truncate">{{ sub.name }}</span>
+            <span class="font-medium flex-shrink-0">{{
+              formatPrice(sub.price)
+            }}</span>
           </li>
         </ul>
       </div>
 
-      <div class="text-xs text-gray-500">
-        <div *ngIf="service.establishment">
+      <div class="text-xs text-gray-500 space-y-1">
+        <div *ngIf="service.establishment" class="truncate">
           Estabelecimento: {{ service.establishment.name }}
         </div>
-        <div *ngIf="service.user">Responsável: {{ service.user.name }}</div>
+        <div *ngIf="service.user" class="truncate">
+          Responsável: {{ service.user.name }}
+        </div>
       </div>
     </div>
 
-    <div *ngIf="services.length === 0" class="col-span-full text-center py-12">
-      <p class="text-gray-500">Nenhum serviço cadastrado</p>
+    <div
+      *ngIf="services.length === 0"
+      class="col-span-full text-center py-8 sm:py-12"
+    >
+      <p class="text-sm sm:text-base text-gray-500">
+        Nenhum serviço cadastrado
+      </p>
       <button
         (click)="openForm()"
-        class="btn btn-primary mt-4"
+        class="btn btn-primary mt-4 text-sm sm:text-base"
         [disabled]="!isEmailVerified"
         [title]="
           !isEmailVerified ? 'Verifique seu email para criar serviços' : ''
