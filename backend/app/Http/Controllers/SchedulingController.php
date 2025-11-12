@@ -6,6 +6,7 @@ use App\Models\Scheduling;
 use App\Models\Service;
 use App\Models\Establishment;
 use App\Models\User;
+use App\Models\Sale;
 use App\Notifications\SchedulingConfirmationNotification;
 use App\Notifications\StatusChangeNotification;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class SchedulingController extends Controller
 {
@@ -24,6 +26,7 @@ class SchedulingController extends Controller
             ->with([
                 'service:id,name,establishment_id',
                 'establishment:id,name,owner_id',
+                'client:id,name,phone,email',
             ])
             ->when(
                 $user->role === 'admin',
@@ -83,17 +86,44 @@ class SchedulingController extends Controller
         $user = $request->user();
 
         $data = $request->validate([
-            'scheduled_date' => ['required', 'date'],
+            'scheduled_date' => ['required', 'date_format:Y-m-d'],
             'scheduled_time' => ['required', 'date_format:H:i'],
             'service_id' => ['required', 'integer', 'exists:services,id'],
             'establishment_id' => ['required', 'integer', 'exists:establishments,id'],
-            'client_name' => ['required', 'string', 'max:255'],
+            'client_id' => ['nullable', 'integer', 'exists:clients,id'],
+            'client_name' => ['required_without:client_id', 'string', 'max:255'],
             'status' => ['sometimes', 'string', 'in:pending,confirmed,completed,cancelled'],
         ]);
 
         // Se não fornecido, definir como 'pending'
         if (!isset($data['status'])) {
             $data['status'] = 'pending';
+        }
+
+        // Garantir que a data seja tratada como data local (sem timezone)
+        // O formato YYYY-MM-DD deve ser interpretado como data local, não UTC
+        if (isset($data['scheduled_date'])) {
+            // Se já for string no formato YYYY-MM-DD, usar diretamente
+            // Não usar Carbon para evitar problemas de timezone
+            if (is_string($data['scheduled_date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['scheduled_date'])) {
+                // Já está no formato correto, usar diretamente
+                // Não fazer nada, apenas garantir que está no formato correto
+            } else {
+                // Se vier como objeto Carbon ou DateTime, converter para string YYYY-MM-DD
+                $date = Carbon::parse($data['scheduled_date'])->format('Y-m-d');
+                $data['scheduled_date'] = $date;
+            }
+        }
+
+        // Se client_id foi fornecido, buscar o nome do cliente
+        if (isset($data['client_id'])) {
+            $client = \App\Models\Client::find($data['client_id']);
+            if ($client && $client->owner_id === $user->id) {
+                $data['client_name'] = $client->name;
+            } else {
+                // Se o cliente não pertence ao usuário, remover client_id
+                unset($data['client_id']);
+            }
         }
 
         // Verificar se o estabelecimento pertence ao usuário (se não for admin)
@@ -157,7 +187,7 @@ class SchedulingController extends Controller
         $user = $request->user();
 
         // Carregar estabelecimento para verificar ownership
-        $scheduling->load('establishment:id,name,owner_id');
+        $scheduling->load('establishment:id,name,owner_id', 'client:id,name,phone,email');
 
         // Verificar permissão
         if ($user->role !== 'admin') {
@@ -182,6 +212,7 @@ class SchedulingController extends Controller
         $scheduling->load([
             'service:id,name,establishment_id',
             'establishment:id,name',
+            'client:id,name,phone,email',
         ]);
 
         return response()->json($scheduling);
@@ -192,7 +223,7 @@ class SchedulingController extends Controller
         $user = $request->user();
 
         // Carregar estabelecimento para verificar ownership
-        $scheduling->load('establishment:id,name,owner_id');
+        $scheduling->load('establishment:id,name,owner_id', 'client:id,name,phone,email');
 
         // Verificar permissão
         if ($user->role !== 'admin') {
@@ -215,13 +246,42 @@ class SchedulingController extends Controller
         }
 
         $data = $request->validate([
-            'scheduled_date' => ['sometimes', 'date'],
+            'scheduled_date' => ['sometimes', 'date_format:Y-m-d'],
             'scheduled_time' => ['sometimes', 'date_format:H:i'],
             'service_id' => ['sometimes', 'integer', 'exists:services,id'],
             'establishment_id' => ['sometimes', 'integer', 'exists:establishments,id'],
+            'client_id' => ['nullable', 'integer', 'exists:clients,id'],
             'client_name' => ['sometimes', 'string', 'max:255'],
             'status' => ['sometimes', 'string', 'in:pending,confirmed,completed,cancelled'],
         ]);
+
+        // Garantir que a data seja tratada como data local (sem timezone)
+        if (isset($data['scheduled_date'])) {
+            // Se já for string no formato YYYY-MM-DD, usar diretamente
+            if (is_string($data['scheduled_date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['scheduled_date'])) {
+                // Já está no formato correto, usar diretamente
+            } else {
+                // Se vier como objeto Carbon ou DateTime, converter para string YYYY-MM-DD
+                $date = Carbon::parse($data['scheduled_date'])->format('Y-m-d');
+                $data['scheduled_date'] = $date;
+            }
+        }
+
+        // Se não fornecido, definir como 'pending'
+        if (!isset($data['status'])) {
+            $data['status'] = 'pending';
+        }
+
+        // Se client_id foi fornecido, buscar o nome do cliente
+        if (isset($data['client_id'])) {
+            $client = \App\Models\Client::find($data['client_id']);
+            if ($client && $client->owner_id === $user->id) {
+                $data['client_name'] = $client->name;
+            } else {
+                // Se o cliente não pertence ao usuário, remover client_id
+                unset($data['client_id']);
+            }
+        }
 
         // Se estiver mudando o establishment_id, verificar permissão
         if (isset($data['establishment_id']) && $user->role !== 'admin') {
@@ -265,6 +325,7 @@ class SchedulingController extends Controller
             'service:id,name,establishment_id,price,description',
             'service.user:id,name,email',
             'establishment:id,name,owner_id',
+            'client:id,name,phone,email',
         ]);
 
         // Enviar notificação de mudança de status (se mudou)
@@ -277,6 +338,11 @@ class SchedulingController extends Controller
                     $owner->notify(new StatusChangeNotification($scheduling, $oldStatus, $data['status']));
                 }
             }
+
+            // Criar venda automaticamente quando o agendamento for concluído
+            if ($data['status'] === 'completed' && $oldStatus !== 'completed') {
+                $this->createSaleFromScheduling($scheduling, $user);
+            }
         }
 
         return response()->json($scheduling);
@@ -287,7 +353,7 @@ class SchedulingController extends Controller
         $user = $request->user();
 
         // Carregar estabelecimento para verificar ownership
-        $scheduling->load('establishment:id,name,owner_id');
+        $scheduling->load('establishment:id,name,owner_id', 'client:id,name,phone,email');
 
         // Verificar permissão
         if ($user->role !== 'admin') {
@@ -397,6 +463,50 @@ class SchedulingController extends Controller
                 }
             }
         }
+    }
+
+    /**
+     * Cria uma venda automaticamente quando um agendamento é concluído
+     */
+    private function createSaleFromScheduling(Scheduling $scheduling, User $user): void
+    {
+        // Verificar se já existe uma venda para este agendamento
+        $existingSale = Sale::where('scheduling_id', $scheduling->id)->first();
+        if ($existingSale) {
+            // Já existe uma venda, não criar duplicata
+            return;
+        }
+
+        // Verificar se o agendamento tem os dados necessários
+        if (!$scheduling->service_id || !$scheduling->establishment_id) {
+            // Não tem dados suficientes para criar a venda
+            return;
+        }
+
+        // Carregar o serviço para obter o preço
+        $service = Service::find($scheduling->service_id);
+        if (!$service) {
+            return;
+        }
+
+        // Determinar o user_id (funcionário que realizou)
+        // Se o serviço tem um funcionário atribuído, usar ele
+        // Caso contrário, usar o usuário autenticado
+        $saleUserId = $service->user_id ?? $user->id;
+
+        // Criar a venda
+        Sale::create([
+            'client_id' => $scheduling->client_id,
+            'service_id' => $scheduling->service_id,
+            'scheduling_id' => $scheduling->id,
+            'establishment_id' => $scheduling->establishment_id,
+            'user_id' => $saleUserId,
+            'amount' => $service->price,
+            'payment_method' => 'pix', // Padrão, pode ser alterado depois
+            'sale_date' => $scheduling->scheduled_date,
+            'status' => 'pending', // Padrão como pendente, pode ser alterado depois
+            'notes' => 'Venda criada automaticamente ao concluir agendamento.',
+        ]);
     }
 }
 

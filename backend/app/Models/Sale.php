@@ -8,50 +8,54 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
 
-class Scheduling extends Model
+class Sale extends Model
 {
     use HasFactory;
 
-    protected $table = 'schedulings';
-
     protected $fillable = [
-        'scheduled_date',
-        'scheduled_time',
-        'service_id',
-        'establishment_id',
         'client_id',
-        'client_name',
+        'service_id',
+        'scheduling_id',
+        'establishment_id',
+        'user_id',
+        'amount',
+        'payment_method',
+        'sale_date',
         'status',
+        'notes',
     ];
 
     protected $casts = [
-        'scheduled_time' => 'string',
+        'amount' => 'decimal:2',
+        'sale_date' => 'date',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
      * Mutator para garantir que a data seja salva como string YYYY-MM-DD
      */
-    public function setScheduledDateAttribute($value)
+    public function setSaleDateAttribute($value)
     {
         if ($value instanceof \DateTime || $value instanceof \Carbon\Carbon) {
-            $this->attributes['scheduled_date'] = $value->format('Y-m-d');
+            $this->attributes['sale_date'] = $value->format('Y-m-d');
         } elseif (is_string($value)) {
             // Se já for string YYYY-MM-DD, usar diretamente
             if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
-                $this->attributes['scheduled_date'] = $value;
+                $this->attributes['sale_date'] = $value;
             } else {
                 // Tentar parsear e converter
-                $this->attributes['scheduled_date'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
+                $this->attributes['sale_date'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
             }
         } else {
-            $this->attributes['scheduled_date'] = $value;
+            $this->attributes['sale_date'] = $value;
         }
     }
 
     /**
      * Accessor para retornar a data como string YYYY-MM-DD
      */
-    public function getScheduledDateAttribute($value)
+    public function getSaleDateAttribute($value)
     {
         if ($value instanceof \DateTime || $value instanceof \Carbon\Carbon) {
             return $value->format('Y-m-d');
@@ -59,9 +63,19 @@ class Scheduling extends Model
         return $value;
     }
 
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function scheduling(): BelongsTo
+    {
+        return $this->belongsTo(Scheduling::class);
     }
 
     public function establishment(): BelongsTo
@@ -69,13 +83,14 @@ class Scheduling extends Model
         return $this->belongsTo(Establishment::class);
     }
 
-    public function client(): BelongsTo
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(User::class);
     }
 
-    public function sales(): HasMany
+    public function commissions(): HasMany
     {
-        return $this->hasMany(Sale::class);
+        return $this->hasMany(Commission::class);
     }
 }
+

@@ -1,13 +1,17 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ClientController;
+use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EstablishmentController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PlanLimitTestController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SchedulingController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SubServiceController;
@@ -33,13 +37,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('dashboard/revenue-chart', [DashboardController::class, 'revenueChart']);
     Route::get('dashboard/top-services', [DashboardController::class, 'topServices']);
+    Route::get('dashboard/financial', [DashboardController::class, 'financial']);
 
     Route::apiResource('employees', EmployeeController::class);
     Route::apiResource('users', UserController::class);
     Route::apiResource('establishments', EstablishmentController::class);
     Route::apiResource('services', ServiceController::class);
     Route::apiResource('sub-services', SubServiceController::class);
+    Route::apiResource('clients', ClientController::class);
     Route::apiResource('schedulings', SchedulingController::class);
+    Route::apiResource('sales', SaleController::class);
+    Route::apiResource('commissions', CommissionController::class);
+    Route::post('commissions/{commission}/mark-as-paid', [CommissionController::class, 'markAsPaid']);
+    Route::apiResource('expenses', ExpenseController::class);
+    Route::post('expenses/{expense}/mark-as-paid', [ExpenseController::class, 'markAsPaid']);
 
     // Planos
     Route::get('plans', [PlanController::class, 'index']);
