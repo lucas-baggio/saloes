@@ -22,10 +22,25 @@ class PlanLimitService
         // Busca o plano atual do usuário
         $currentPlan = $user->currentPlan;
 
+        // Se não tem plano, permite criar 1 estabelecimento (plano gratuito padrão)
         if (!$currentPlan) {
+            $currentCount = Establishment::where('owner_id', $user->id)->count();
+            $freeLimit = 1; // Limite do plano gratuito
+
+            if ($currentCount >= $freeLimit) {
+                return [
+                    'allowed' => false,
+                    'message' => "Você atingiu o limite do plano gratuito ({$freeLimit} estabelecimento). Faça upgrade para criar mais estabelecimentos.",
+                    'current' => $currentCount,
+                    'limit' => $freeLimit,
+                ];
+            }
+
             return [
-                'allowed' => false,
-                'message' => 'Você precisa de um plano ativo para criar estabelecimentos.',
+                'allowed' => true,
+                'current' => $currentCount,
+                'limit' => $freeLimit,
+                'remaining' => $freeLimit - $currentCount,
             ];
         }
 

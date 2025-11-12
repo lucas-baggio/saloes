@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Plan;
+use App\Models\UserPlan;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
 use App\Notifications\WelcomeNotification;
@@ -33,6 +35,24 @@ class AuthController extends Controller
             'role' => $data['role'],
             'email_verified_at' => null, // Email não verificado
         ]);
+
+        // Se for owner, atribuir plano gratuito automaticamente
+        if ($data['role'] === 'owner') {
+            $freePlan = Plan::where('name', 'Gratuito')
+                ->where('price', 0.00)
+                ->where('interval', 'monthly')
+                ->first();
+
+            if ($freePlan) {
+                UserPlan::create([
+                    'user_id' => $user->id,
+                    'plan_id' => $freePlan->id,
+                    'status' => 'active',
+                    'starts_at' => now(),
+                    'ends_at' => null, // Plano gratuito não expira
+                ]);
+            }
+        }
 
         // Gerar token de verificação
         $verificationToken = Str::random(64);

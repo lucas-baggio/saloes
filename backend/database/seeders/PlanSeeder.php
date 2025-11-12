@@ -13,6 +13,24 @@ class PlanSeeder extends Seeder
     public function run(): void
     {
         $plans = [
+            // Plano Gratuito
+            [
+                'name' => 'Gratuito',
+                'description' => 'Plano gratuito para começar',
+                'price' => 0.00,
+                'interval' => 'monthly',
+                'features' => [
+                    'Até 1 estabelecimento',
+                    'Até 5 serviços',
+                    'Até 1 funcionário',
+                    'Suporte básico',
+                ],
+                'max_establishments' => 1,
+                'max_services' => 5,
+                'max_employees' => 1,
+                'is_popular' => false,
+                'is_active' => true,
+            ],
             // Planos Mensais
             [
                 'name' => 'Básico',
