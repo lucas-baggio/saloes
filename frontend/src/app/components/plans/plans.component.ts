@@ -44,7 +44,12 @@ export class PlansComponent implements OnInit {
     this.loading = true;
     this.planService.getAll().subscribe({
       next: (response) => {
-        this.plans = response.data || response || [];
+        const allPlans: Plan[] = response.data || response || [];
+        // Remover duplicatas baseado em id
+        const uniquePlans = Array.from(
+          new Map(allPlans.map((plan: Plan) => [plan.id, plan])).values()
+        ) as Plan[];
+        this.plans = uniquePlans;
         this.loading = false;
       },
       error: (err) => {
@@ -61,16 +66,42 @@ export class PlansComponent implements OnInit {
     this.planService.getCurrentPlan().subscribe({
       next: (plan) => {
         this.currentPlan = plan;
+        console.log('Plano atual carregado:', plan);
       },
-      error: () => {
+      error: (err) => {
         // Se não houver plano atual, não é um erro crítico
+        console.log('Nenhum plano atual encontrado:', err);
         this.currentPlan = null;
       },
     });
   }
 
   getFilteredPlans(): Plan[] {
-    return this.plans.filter((plan) => plan.interval === this.selectedInterval);
+    // Sempre incluir o plano gratuito
+    const freePlan = this.plans.find(
+      (plan) => plan.name === 'Gratuito' && plan.price === 0
+    );
+
+    // Filtrar planos por intervalo, excluindo o gratuito (já será adicionado)
+    const filteredPlans = this.plans.filter(
+      (plan) =>
+        plan.interval === this.selectedInterval &&
+        !(plan.name === 'Gratuito' && plan.price === 0)
+    );
+
+    // Remover duplicatas por nome e intervalo
+    const uniquePlans = Array.from(
+      new Map(
+        filteredPlans.map((plan) => [`${plan.name}-${plan.interval}`, plan])
+      ).values()
+    );
+
+    // Adicionar o plano gratuito no início se existir
+    if (freePlan) {
+      return [freePlan, ...uniquePlans];
+    }
+
+    return uniquePlans;
   }
 
   subscribe(plan: Plan) {
@@ -111,10 +142,21 @@ export class PlansComponent implements OnInit {
   }
 
   isCurrentPlan(planId: number): boolean {
-    return (
-      this.currentPlan?.plan_id === planId &&
-      this.currentPlan?.status === 'active'
-    );
+    if (!this.currentPlan || this.currentPlan.status !== 'active') {
+      return false;
+    }
+
+    // Verificar se o plan_id corresponde
+    if (this.currentPlan.plan_id === planId) {
+      return true;
+    }
+
+    // Verificar se o plano atual tem um objeto plan e o id corresponde
+    if (this.currentPlan.plan && this.currentPlan.plan.id === planId) {
+      return true;
+    }
+
+    return false;
   }
 
   getMaxFeaturesLength(): number[] {

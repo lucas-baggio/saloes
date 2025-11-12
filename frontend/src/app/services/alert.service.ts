@@ -107,6 +107,33 @@ export class AlertService {
     return this.error(title, message);
   }
 
+  // Input (para substituir prompt)
+  async prompt(
+    title: string,
+    message?: string,
+    placeholder: string = 'Digite aqui...'
+  ): Promise<string | null> {
+    const { value } = await Swal.fire({
+      title,
+      text: message,
+      input: 'text',
+      inputPlaceholder: placeholder,
+      showCancelButton: true,
+      confirmButtonText: 'Confirmar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#ef4444',
+      inputValidator: (value) => {
+        if (!value || !value.trim()) {
+          return 'Por favor, preencha o campo!';
+        }
+        return null;
+      },
+    });
+
+    return value || null;
+  }
+
   // Traduzir mensagens comuns do Laravel para português
   private translateMessage(message: string): string {
     const translations: { [key: string]: string } = {

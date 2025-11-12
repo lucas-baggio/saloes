@@ -10,8 +10,10 @@ import {
 import { SchedulingService } from '../../services/scheduling.service';
 import { ServiceService } from '../../services/service.service';
 import { EstablishmentService } from '../../services/establishment.service';
+import { ClientService } from '../../services/client.service';
 import { Scheduling, Service } from '../../models/service.model';
 import { Establishment } from '../../models/establishment.model';
+import { Client } from '../../models/client.model';
 import { AlertService } from '../../services/alert.service';
 import { AuthService } from '../../services/auth.service';
 import {
@@ -39,6 +41,7 @@ export class SchedulingsComponent implements OnInit {
   allFilteredSchedulings: Scheduling[] = []; // Todos os agendamentos filtrados (antes da paginação)
   services: Service[] = [];
   establishments: Establishment[] = [];
+  clients: Client[] = [];
   filteredServices: Service[] = [];
   loading = false;
   showForm = false;
@@ -80,6 +83,7 @@ export class SchedulingsComponent implements OnInit {
     private schedulingService: SchedulingService,
     private serviceService: ServiceService,
     private establishmentService: EstablishmentService,
+    private clientService: ClientService,
     private alertService: AlertService,
     private authService: AuthService,
     private fb: FormBuilder,
@@ -90,8 +94,22 @@ export class SchedulingsComponent implements OnInit {
       scheduled_time: ['', [Validators.required]],
       establishment_id: ['', [Validators.required]],
       service_id: ['', [Validators.required]],
+      client_id: [null],
       client_name: ['', [Validators.required]],
       status: ['pending', [Validators.required]],
+    });
+
+    // Quando um cliente for selecionado, preencher o nome automaticamente
+    this.form.get('client_id')?.valueChanges.subscribe((clientId) => {
+      if (clientId) {
+        const client = this.clients.find((c) => c.id === clientId);
+        if (client) {
+          this.form.patchValue(
+            { client_name: client.name },
+            { emitEvent: false }
+          );
+        }
+      }
     });
   }
 
@@ -103,6 +121,7 @@ export class SchedulingsComponent implements OnInit {
     // Funcionários não precisam carregar estabelecimentos (não podem selecionar)
     if (this.user?.role !== 'employee') {
       this.loadEstablishments();
+      this.loadClients();
     }
 
     this.loadServices();
@@ -112,6 +131,22 @@ export class SchedulingsComponent implements OnInit {
     this.establishmentService.getAll().subscribe({
       next: (data) => {
         this.establishments = Array.isArray(data) ? data : data.data || [];
+      },
+    });
+  }
+
+  loadClients() {
+    // Apenas owners e admins podem ter clientes
+    if (this.user?.role === 'employee') {
+      return;
+    }
+    this.clientService.getAll().subscribe({
+      next: (response) => {
+        this.clients = response.data || response || [];
+      },
+      error: (err) => {
+        // Não mostrar erro se não houver clientes cadastrados
+        this.clients = [];
       },
     });
   }
@@ -412,12 +447,19 @@ export class SchedulingsComponent implements OnInit {
 
         if (scheduling) {
           this.editingId = scheduling.id;
-          const date = new Date(scheduling.scheduled_date);
+          // Se a data já vier no formato YYYY-MM-DD, usar diretamente
+          // Caso contrário, converter
+          let dateStr = scheduling.scheduled_date;
+          if (dateStr && !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const date = new Date(scheduling.scheduled_date);
+            dateStr = date.toISOString().split('T')[0];
+          }
           this.form.patchValue({
-            scheduled_date: date.toISOString().split('T')[0],
+            scheduled_date: dateStr,
             scheduled_time: scheduling.scheduled_time,
             establishment_id: scheduling.establishment_id,
             service_id: scheduling.service_id,
+            client_id: scheduling.client_id || null,
             client_name: scheduling.client_name || '',
             status: scheduling.status || 'pending',
           });
@@ -430,7 +472,10 @@ export class SchedulingsComponent implements OnInit {
           }
         } else {
           this.editingId = null;
-          this.form.reset();
+          this.form.reset({
+            status: 'pending',
+            client_id: null,
+          });
 
           // Para funcionários, já filtrar serviços atribuídos a ele
           if (user?.role === 'employee') {
@@ -526,10 +571,28 @@ export class SchedulingsComponent implements OnInit {
   closeForm() {
     this.showForm = false;
     this.editingId = null;
-    this.form.reset();
+    this.form.reset({
+      status: 'pending',
+      client_id: null,
+    });
     this.filteredServices = [];
     // Forçar detecção de mudanças para garantir que a lista apareça
     this.cdr.detectChanges();
+  }
+
+  onClientChange(event: any) {
+    const clientId = event.target.value;
+    if (clientId) {
+      const client = this.clients.find((c) => c.id === Number(clientId));
+      if (client) {
+        this.form.patchValue(
+          { client_name: client.name },
+          { emitEvent: false }
+        );
+      }
+    } else {
+      this.form.patchValue({ client_name: '' }, { emitEvent: false });
+    }
   }
 
   get minDate(): string {
@@ -581,6 +644,7 @@ export class SchedulingsComponent implements OnInit {
         scheduled_time: timeValue,
         establishment_id: Number(this.form.value.establishment_id),
         service_id: Number(this.form.value.service_id),
+        client_id: this.form.value.client_id || null,
         client_name: this.form.value.client_name,
         status: this.form.value.status || 'pending',
       };
@@ -657,7 +721,18 @@ export class SchedulingsComponent implements OnInit {
   }
 
   formatDate(date: string): string {
-    return new Date(date).toLocaleDateString('pt-BR');
+    // Se a data já vier no formato YYYY-MM-DD, formatar diretamente
+    // para evitar problemas de timezone com new Date()
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [year, month, day] = date.split('-');
+      return `${day}/${month}/${year}`;
+    }
+    // Se não for formato YYYY-MM-DD, tentar parsear normalmente
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return date; // Retornar a string original se não conseguir parsear
+    }
+    return dateObj.toLocaleDateString('pt-BR');
   }
 
   formatCurrency(value: number): string {

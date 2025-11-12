@@ -1,0 +1,308 @@
+<div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+  <app-breadcrumbs [items]="breadcrumbs"></app-breadcrumbs>
+
+  <div
+    class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8"
+  >
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Comissões</h1>
+      <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
+        Gerencie as comissões dos funcionários
+      </p>
+    </div>
+  </div>
+
+  <!-- Resumo -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+    <div class="card">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-600">Total Pendente</p>
+          <p class="text-2xl font-bold text-amber-600">
+            {{ getTotalPending() | currency : "BRL" }}
+          </p>
+        </div>
+        <div class="p-3 bg-amber-100 rounded-full">
+          <svg
+            class="h-8 w-8 text-amber-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-600">Total Pago</p>
+          <p class="text-2xl font-bold text-green-600">
+            {{ getTotalPaid() | currency : "BRL" }}
+          </p>
+        </div>
+        <div class="p-3 bg-green-100 rounded-full">
+          <svg
+            class="h-8 w-8 text-green-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros e Busca -->
+  <div *ngIf="!loading" class="card mb-6">
+    <div class="space-y-4">
+      <!-- Busca -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Buscar
+        </label>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onSearch()"
+          placeholder="Buscar por funcionário ou serviço..."
+          class="input w-full"
+        />
+      </div>
+
+      <!-- Filtros em Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Filtro por Status -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Status
+          </label>
+          <select
+            [(ngModel)]="filterStatus"
+            (ngModelChange)="loadCommissions()"
+            class="input w-full"
+          >
+            <option value="">Todos os status</option>
+            <option value="pending">Pendente</option>
+            <option value="paid">Paga</option>
+            <option value="cancelled">Cancelada</option>
+          </select>
+        </div>
+
+        <!-- Filtro por Data (De) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Data (De)
+          </label>
+          <input
+            type="date"
+            [(ngModel)]="filterFromDate"
+            (ngModelChange)="loadCommissions()"
+            class="input w-full"
+          />
+        </div>
+
+        <!-- Filtro por Data (Até) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Data (Até)
+          </label>
+          <input
+            type="date"
+            [(ngModel)]="filterToDate"
+            (ngModelChange)="loadCommissions()"
+            class="input w-full"
+          />
+        </div>
+      </div>
+
+      <!-- Botão Limpar Filtros -->
+      <div class="flex justify-end">
+        <button
+          (click)="clearFilters()"
+          class="btn btn-secondary"
+          [disabled]="
+            !searchTerm && !filterStatus && !filterFromDate && !filterToDate
+          "
+        >
+          Limpar Filtros
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="text-center py-12">
+    <div
+      class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+    ></div>
+    <p class="mt-2 text-gray-600">Carregando comissões...</p>
+  </div>
+
+  <!-- Lista de Comissões -->
+  <div *ngIf="!loading && commissions.length > 0" class="grid gap-4 sm:gap-6">
+    <div
+      *ngFor="let commission of commissions"
+      class="card hover:shadow-lg transition-all duration-300 hover:scale-[1.02] slide-up"
+    >
+      <div
+        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
+        <div class="flex-1">
+          <div class="flex items-start justify-between gap-4 mb-2">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900">
+                {{ commission.user?.name || "Funcionário não informado" }}
+              </h3>
+              <p class="text-sm text-gray-600 mt-1">
+                <span *ngIf="commission.sale?.service">
+                  Serviço: <strong>{{ commission.sale?.service?.name }}</strong>
+                </span>
+                <span *ngIf="!commission.sale?.service" class="text-gray-400">
+                  Serviço não informado
+                </span>
+              </p>
+            </div>
+            <div class="text-right">
+              <p class="text-2xl font-bold text-blue-600">
+                {{ commission.amount | currency : "BRL" }}
+              </p>
+              <p class="text-sm text-gray-500">
+                {{ commission.percentage }}% de
+                {{ commission.sale?.amount | currency : "BRL" }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
+            <div class="flex items-center gap-1">
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              Venda: {{ formatDate(commission.sale?.sale_date || "") }}
+            </div>
+            <div
+              *ngIf="commission.payment_date"
+              class="flex items-center gap-1"
+            >
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Paga em: {{ formatDate(commission.payment_date) }}
+            </div>
+            <div
+              *ngIf="commission.sale?.establishment"
+              class="flex items-center gap-1"
+            >
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+              {{ commission.sale?.establishment?.name }}
+            </div>
+          </div>
+
+          <div class="mt-3 flex items-center gap-2">
+            <span
+              [class]="
+                'px-3 py-1 rounded-full text-xs font-medium ' +
+                getStatusColor(commission.status)
+              "
+            >
+              {{ getStatusLabel(commission.status) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            *ngIf="commission.status === 'pending' && !isEmployee"
+            (click)="markAsPaid(commission)"
+            class="btn btn-sm btn-success"
+            title="Marcar como Paga"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            Marcar como Paga
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && commissions.length === 0" class="text-center py-12">
+    <svg
+      class="mx-auto h-12 w-12 text-gray-400"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">
+      Nenhuma comissão encontrada
+    </h3>
+    <p class="mt-1 text-sm text-gray-500">
+      As comissões são criadas automaticamente quando vendas são realizadas.
+    </p>
+  </div>
+</div>

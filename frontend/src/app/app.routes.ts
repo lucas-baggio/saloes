@@ -107,6 +107,38 @@ export const routes: Routes = [
         canActivate: [ownerGuard, emailVerifiedGuard],
       },
       {
+        path: 'clients',
+        loadComponent: () =>
+          import('./components/clients/clients.component').then(
+            (m) => m.ClientsComponent
+          ),
+        canActivate: [ownerGuard, emailVerifiedGuard],
+      },
+      {
+        path: 'sales',
+        loadComponent: () =>
+          import('./components/sales/sales.component').then(
+            (m) => m.SalesComponent
+          ),
+        canActivate: [emailVerifiedGuard],
+      },
+      {
+        path: 'commissions',
+        loadComponent: () =>
+          import('./components/commissions/commissions.component').then(
+            (m) => m.CommissionsComponent
+          ),
+        canActivate: [emailVerifiedGuard],
+      },
+      {
+        path: 'expenses',
+        loadComponent: () =>
+          import('./components/expenses/expenses.component').then(
+            (m) => m.ExpensesComponent
+          ),
+        canActivate: [emailVerifiedGuard],
+      },
+      {
         path: 'plans',
         loadComponent: () =>
           import('./components/plans/plans.component').then(

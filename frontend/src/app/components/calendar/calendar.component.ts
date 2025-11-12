@@ -149,8 +149,13 @@ export class CalendarComponent implements OnInit {
   getSchedulingsForDate(date: Date): Scheduling[] {
     const dateStr = this.formatDate(date);
     return this.schedulings.filter((scheduling) => {
-      const schedulingDate = new Date(scheduling.scheduled_date);
-      const schedulingDateStr = this.formatDate(schedulingDate);
+      // Se a data já vier no formato YYYY-MM-DD, usar diretamente
+      // Caso contrário, converter
+      let schedulingDateStr = scheduling.scheduled_date;
+      if (schedulingDateStr && !/^\d{4}-\d{2}-\d{2}$/.test(schedulingDateStr)) {
+        const schedulingDate = new Date(scheduling.scheduled_date);
+        schedulingDateStr = this.formatDate(schedulingDate);
+      }
       return schedulingDateStr === dateStr;
     });
   }
@@ -204,7 +209,14 @@ export class CalendarComponent implements OnInit {
       event.stopPropagation();
     }
     this.selectedScheduling = scheduling;
-    this.selectedDate = new Date(scheduling.scheduled_date);
+    // Converter a data string YYYY-MM-DD para Date sem problemas de timezone
+    const dateStr = scheduling.scheduled_date;
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      this.selectedDate = new Date(year, month - 1, day);
+    } else {
+      this.selectedDate = new Date(scheduling.scheduled_date);
+    }
   }
 
   closeSchedulingDetails() {

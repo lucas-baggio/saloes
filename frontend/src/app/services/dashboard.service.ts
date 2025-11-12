@@ -36,6 +36,17 @@ export interface TopService {
   average_price: number;
 }
 
+export interface FinancialData {
+  income: number;
+  expenses: number;
+  balance: number;
+  pending_expenses_count: number;
+  pending_expenses_amount: number;
+  period: string;
+  start_date: string;
+  end_date: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -59,5 +70,9 @@ export class DashboardService {
     return this.api.get<TopService[]>(
       `dashboard/top-services?period=${period}&limit=${limit}`
     );
+  }
+
+  getFinancial(period: string = 'month'): Observable<FinancialData> {
+    return this.api.get<FinancialData>(`dashboard/financial?period=${period}`);
   }
 }

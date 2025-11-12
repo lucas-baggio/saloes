@@ -38,6 +38,7 @@ export interface Scheduling {
   scheduled_time: string;
   service_id: number;
   establishment_id: number;
+  client_id?: number | null;
   client_name: string;
   status?: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   created_at?: string;
@@ -57,5 +58,11 @@ export interface Scheduling {
   establishment?: {
     id: number;
     name: string;
+  };
+  client?: {
+    id: number;
+    name: string;
+    phone?: string;
+    email?: string;
   };
 }

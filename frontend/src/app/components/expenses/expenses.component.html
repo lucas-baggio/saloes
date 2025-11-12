@@ -1,0 +1,541 @@
+<div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+  <app-breadcrumbs [items]="breadcrumbs"></app-breadcrumbs>
+
+  <div
+    class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8"
+  >
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Despesas</h1>
+      <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
+        Gerencie suas despesas e contas a pagar
+      </p>
+    </div>
+    <button
+      *ngIf="!isEmployee"
+      (click)="openForm()"
+      class="btn btn-primary w-full sm:w-auto text-sm sm:text-base flex items-center gap-2"
+      [disabled]="!isEmailVerified"
+    >
+      <svg
+        class="h-5 w-5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 4v16m8-8H4"
+        />
+      </svg>
+      Nova Despesa
+    </button>
+  </div>
+
+  <!-- Filtros e Busca -->
+  <div *ngIf="!loading && !showForm" class="card mb-6">
+    <div class="space-y-4">
+      <!-- Busca -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Buscar
+        </label>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onSearch()"
+          placeholder="Buscar por descrição, categoria..."
+          class="input w-full"
+        />
+      </div>
+
+      <!-- Filtros em Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Filtro por Status -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Status
+          </label>
+          <select
+            [(ngModel)]="filterStatus"
+            (ngModelChange)="loadExpenses()"
+            class="input w-full"
+          >
+            <option value="">Todos os status</option>
+            <option value="pending">Pendente</option>
+            <option value="paid">Paga</option>
+            <option value="overdue">Vencida</option>
+          </select>
+        </div>
+
+        <!-- Filtro por Categoria -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Categoria
+          </label>
+          <select
+            [(ngModel)]="filterCategory"
+            (ngModelChange)="loadExpenses()"
+            class="input w-full"
+          >
+            <option value="">Todas as categorias</option>
+            <option *ngFor="let cat of categories" [value]="cat.value">
+              {{ cat.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Filtro por Estabelecimento -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Estabelecimento
+          </label>
+          <select
+            [(ngModel)]="filterEstablishmentId"
+            (ngModelChange)="loadExpenses()"
+            class="input w-full"
+          >
+            <option value="">Todos os estabelecimentos</option>
+            <option *ngFor="let est of establishments" [value]="est.id">
+              {{ est.name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Filtro por Data (De) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Data (De)
+          </label>
+          <input
+            type="date"
+            [(ngModel)]="filterFromDate"
+            (ngModelChange)="loadExpenses()"
+            class="input w-full"
+          />
+        </div>
+
+        <!-- Filtro por Data (Até) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Data (Até)
+          </label>
+          <input
+            type="date"
+            [(ngModel)]="filterToDate"
+            (ngModelChange)="loadExpenses()"
+            class="input w-full"
+          />
+        </div>
+      </div>
+
+      <!-- Botão Limpar Filtros -->
+      <div class="flex justify-end">
+        <button
+          (click)="clearFilters()"
+          class="btn btn-secondary"
+          [disabled]="
+            !searchTerm &&
+            !filterStatus &&
+            !filterCategory &&
+            !filterFromDate &&
+            !filterToDate &&
+            !filterEstablishmentId
+          "
+        >
+          Limpar Filtros
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="text-center py-12">
+    <div
+      class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+    ></div>
+    <p class="mt-2 text-gray-600">Carregando despesas...</p>
+  </div>
+
+  <!-- Lista de Despesas -->
+  <div *ngIf="!loading && expenses.length > 0" class="grid gap-4 sm:gap-6">
+    <div
+      *ngFor="let expense of expenses"
+      class="card hover:shadow-lg transition-all duration-300 hover:scale-[1.02] slide-up"
+      [class.border-red-300]="isOverdue(expense)"
+    >
+      <div
+        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
+        <div class="flex-1">
+          <div class="flex items-start justify-between gap-4 mb-2">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900">
+                {{ expense.description }}
+              </h3>
+              <p class="text-sm text-gray-600 mt-1">
+                <span class="font-medium">{{
+                  getCategoryLabel(expense.category)
+                }}</span>
+                <span *ngIf="expense.establishment" class="text-gray-500">
+                  · {{ expense.establishment.name }}
+                </span>
+              </p>
+            </div>
+            <div class="text-right">
+              <p class="text-2xl font-bold text-red-600">
+                {{ expense.amount | currency : "BRL" }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
+            <div class="flex items-center gap-1">
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              Vencimento: {{ formatDate(expense.due_date) }}
+            </div>
+            <div *ngIf="expense.payment_date" class="flex items-center gap-1">
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Paga em: {{ formatDate(expense.payment_date) }}
+            </div>
+            <div class="flex items-center gap-1">
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                />
+              </svg>
+              {{ getPaymentMethodLabel(expense.payment_method) }}
+            </div>
+          </div>
+
+          <div class="mt-3 flex items-center gap-2">
+            <span
+              [class]="
+                'px-3 py-1 rounded-full text-xs font-medium ' +
+                getStatusColor(expense.status)
+              "
+            >
+              {{ getStatusLabel(expense.status) }}
+            </span>
+            <span
+              *ngIf="isOverdue(expense)"
+              class="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200"
+            >
+              ⚠️ Vencida
+            </span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            *ngIf="expense.status === 'pending' && !isEmployee"
+            (click)="markAsPaid(expense)"
+            class="btn btn-sm btn-success"
+            title="Marcar como Paga"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            Marcar como Paga
+          </button>
+          <button
+            *ngIf="!isEmployee"
+            (click)="openForm(expense)"
+            class="btn btn-sm btn-secondary"
+            title="Editar"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </button>
+          <button
+            *ngIf="!isEmployee"
+            (click)="delete(expense.id)"
+            class="btn btn-sm btn-danger"
+            title="Excluir"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && expenses.length === 0" class="text-center py-12">
+    <svg
+      class="mx-auto h-12 w-12 text-gray-400"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+      />
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">
+      Nenhuma despesa encontrada
+    </h3>
+    <p class="mt-1 text-sm text-gray-500">
+      Comece criando sua primeira despesa.
+    </p>
+  </div>
+
+  <!-- Modal de Formulário -->
+  <div
+    *ngIf="showForm"
+    class="fixed inset-0 z-50 overflow-y-auto"
+    (click)="closeForm()"
+  >
+    <div
+      class="flex min-h-screen items-center justify-center p-4"
+      (click)="$event.stopPropagation()"
+    >
+      <div
+        class="relative w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl fade-in scale-in"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-xl font-bold text-gray-900">
+            {{ editingId ? "Editar Despesa" : "Nova Despesa" }}
+          </h2>
+          <button
+            (click)="closeForm()"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+          <div>
+            <label class="label">Estabelecimento *</label>
+            <select formControlName="establishment_id" class="input">
+              <option [value]="null">Selecione...</option>
+              <option *ngFor="let est of establishments" [value]="est.id">
+                {{ est.name }}
+              </option>
+            </select>
+            <div
+              *ngIf="
+                form.get('establishment_id')?.invalid &&
+                form.get('establishment_id')?.touched
+              "
+              class="text-red-600 text-sm mt-1"
+            >
+              Estabelecimento é obrigatório
+            </div>
+          </div>
+
+          <div>
+            <label class="label">Descrição *</label>
+            <input
+              type="text"
+              formControlName="description"
+              class="input"
+              placeholder="Ex: Aluguel do mês de novembro"
+            />
+            <div
+              *ngIf="
+                form.get('description')?.invalid &&
+                form.get('description')?.touched
+              "
+              class="text-red-600 text-sm mt-1"
+            >
+              Descrição é obrigatória (mínimo 3 caracteres)
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="label">Categoria *</label>
+              <select formControlName="category" class="input">
+                <option [value]="null">Selecione...</option>
+                <option *ngFor="let cat of categories" [value]="cat.value">
+                  {{ cat.label }}
+                </option>
+              </select>
+              <div
+                *ngIf="
+                  form.get('category')?.invalid && form.get('category')?.touched
+                "
+                class="text-red-600 text-sm mt-1"
+              >
+                Categoria é obrigatória
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Valor *</label>
+              <input
+                type="number"
+                formControlName="amount"
+                step="0.01"
+                min="0.01"
+                class="input"
+                placeholder="0.00"
+              />
+              <div
+                *ngIf="
+                  form.get('amount')?.invalid && form.get('amount')?.touched
+                "
+                class="text-red-600 text-sm mt-1"
+              >
+                Valor é obrigatório (mínimo R$ 0,01)
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="label">Data de Vencimento *</label>
+              <input type="date" formControlName="due_date" class="input" />
+              <div
+                *ngIf="
+                  form.get('due_date')?.invalid && form.get('due_date')?.touched
+                "
+                class="text-red-600 text-sm mt-1"
+              >
+                Data de vencimento é obrigatória
+              </div>
+            </div>
+
+            <div>
+              <label class="label">Data de Pagamento</label>
+              <input type="date" formControlName="payment_date" class="input" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="label">Forma de Pagamento *</label>
+              <select formControlName="payment_method" class="input">
+                <option
+                  *ngFor="let method of paymentMethods"
+                  [value]="method.value"
+                >
+                  {{ method.label }}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Status *</label>
+              <select formControlName="status" class="input">
+                <option
+                  *ngFor="let status of statusOptions"
+                  [value]="status.value"
+                >
+                  {{ status.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="label">Observações</label>
+            <textarea
+              formControlName="notes"
+              class="input"
+              rows="3"
+              placeholder="Observações adicionais..."
+            ></textarea>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-4">
+            <button
+              type="button"
+              (click)="closeForm()"
+              class="btn btn-secondary"
+            >
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary" [disabled]="loading">
+              {{ editingId ? "Atualizar" : "Criar" }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

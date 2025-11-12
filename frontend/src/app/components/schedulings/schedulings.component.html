@@ -233,13 +233,47 @@
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2"
-              >Nome do Cliente *</label
+              >Cliente *</label
             >
+            @if (clients.length > 0) {
+            <div class="space-y-2">
+              <select
+                formControlName="client_id"
+                class="input"
+                (change)="onClientChange($event)"
+              >
+                <option [value]="null">Selecione um cliente cadastrado</option>
+                @for (client of clients; track client.id) {
+                <option [value]="client.id">{{ client.name }}</option>
+                }
+              </select>
+              <div class="text-xs text-gray-500 flex items-center gap-1">
+                <svg
+                  class="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>ou</span>
+              </div>
+            </div>
+            }
             <input
               type="text"
               formControlName="client_name"
               class="input"
-              placeholder="Digite o nome do cliente"
+              [placeholder]="
+                clients.length > 0
+                  ? 'Digite o nome do cliente'
+                  : 'Nome do cliente'
+              "
             />
           </div>
 

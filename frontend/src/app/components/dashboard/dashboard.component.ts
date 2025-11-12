@@ -13,12 +13,16 @@ import {
   DashboardStats,
   RevenueChart,
   TopService,
+  FinancialData,
 } from '../../services/dashboard.service';
 import { AuthService } from '../../services/auth.service';
 import { SchedulingService } from '../../services/scheduling.service';
 import { Scheduling } from '../../models/service.model';
 import { Chart, registerables } from 'chart.js';
-import { BreadcrumbsComponent, BreadcrumbItem } from '../breadcrumbs/breadcrumbs.component';
+import {
+  BreadcrumbsComponent,
+  BreadcrumbItem,
+} from '../breadcrumbs/breadcrumbs.component';
 
 Chart.register(...registerables);
 
@@ -39,9 +43,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   stats: DashboardStats | null = null;
   revenueChart: RevenueChart | null = null;
-  breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Dashboard' },
-  ];
+  financialData: FinancialData | null = null;
+  breadcrumbs: BreadcrumbItem[] = [{ label: 'Dashboard' }];
   topServices: TopService[] = [];
   schedulings: Scheduling[] = [];
   pastSchedulings: Scheduling[] = [];
@@ -182,19 +185,35 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.dashboardService.getStats(this.selectedPeriod).subscribe({
       next: (data) => {
+        console.log('Dashboard Stats Received:', {
+          period: this.selectedPeriod,
+          data: data,
+          schedulings_total: data.schedulings?.total,
+          revenue_total: data.revenue?.total,
+        });
         this.stats = data;
         this.loading = false;
       },
-      error: () => {
+      error: (err) => {
+        console.error('Dashboard Stats Error:', err);
         this.loading = false;
       },
     });
 
     this.dashboardService.getRevenueChart(this.selectedPeriod).subscribe({
       next: (data) => {
+        console.log('Dashboard Revenue Chart Received:', {
+          period: this.selectedPeriod,
+          labels: data.labels,
+          revenue: data.revenue,
+          count: data.count,
+        });
         this.revenueChart = data;
         // Wait for view to be ready
         setTimeout(() => this.createRevenueChart(), 100);
+      },
+      error: (err) => {
+        console.error('Dashboard Revenue Chart Error:', err);
       },
     });
 
@@ -205,6 +224,18 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => this.createServicesChart(), 100);
       },
     });
+
+    // Load financial data (only for non-employees)
+    if (!this.isEmployee) {
+      this.dashboardService.getFinancial(this.selectedPeriod).subscribe({
+        next: (data) => {
+          this.financialData = data;
+        },
+        error: (err) => {
+          console.error('Dashboard Financial Error:', err);
+        },
+      });
+    }
 
     // Load schedulings for status chart
     this.schedulingService.getAll().subscribe({
