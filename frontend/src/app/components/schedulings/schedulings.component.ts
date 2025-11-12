@@ -14,11 +14,22 @@ import { Scheduling, Service } from '../../models/service.model';
 import { Establishment } from '../../models/establishment.model';
 import { AlertService } from '../../services/alert.service';
 import { AuthService } from '../../services/auth.service';
+import {
+  BreadcrumbsComponent,
+  BreadcrumbItem,
+} from '../breadcrumbs/breadcrumbs.component';
+import { TooltipDirective } from '../../directives/tooltip.directive';
 
 @Component({
   selector: 'app-schedulings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    FormsModule,
+    BreadcrumbsComponent,
+    TooltipDirective,
+  ],
   templateUrl: './schedulings.component.html',
   styleUrl: './schedulings.component.scss',
 })
@@ -35,6 +46,10 @@ export class SchedulingsComponent implements OnInit {
   form: FormGroup;
   user: any = null;
   isEmailVerified = false;
+  breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Dashboard', route: '/dashboard' },
+    { label: 'Agendamentos' },
+  ];
 
   // Filtros
   searchTerm = '';
@@ -296,6 +311,53 @@ export class SchedulingsComponent implements OnInit {
     this.filterEstablishmentId = '';
     this.filterStatus = '';
     this.applyFilters();
+  }
+
+  getActiveFiltersCount(): number {
+    let count = 0;
+    if (this.searchTerm && this.searchTerm.trim()) count++;
+    if (this.filterDate) count++;
+    if (this.filterServiceId) count++;
+    if (this.filterEstablishmentId) count++;
+    if (this.filterStatus) count++;
+    return count;
+  }
+
+  getFilterLabel(filterType: string): string {
+    switch (filterType) {
+      case 'searchTerm':
+        return `Busca: "${this.searchTerm}"`;
+      case 'filterDate':
+        const dateLabels: { [key: string]: string } = {
+          today: 'Hoje',
+          week: 'Esta semana',
+          month: 'Este mês',
+          year: 'Este ano',
+        };
+        return `Data: ${dateLabels[this.filterDate] || this.filterDate}`;
+      case 'filterServiceId':
+        const service = this.services.find(
+          (s) => s.id === Number(this.filterServiceId)
+        );
+        return `Serviço: ${service?.name || 'N/A'}`;
+      case 'filterEstablishmentId':
+        const establishment = this.establishments.find(
+          (e) => e.id === Number(this.filterEstablishmentId)
+        );
+        return `Estabelecimento: ${establishment?.name || 'N/A'}`;
+      case 'filterStatus':
+        const statusLabels: { [key: string]: string } = {
+          pending: 'Pendente',
+          confirmed: 'Confirmado',
+          cancelled: 'Cancelado',
+          completed: 'Concluído',
+        };
+        return `Status: ${
+          statusLabels[this.filterStatus] || this.filterStatus
+        }`;
+      default:
+        return '';
+    }
   }
 
   loadServices() {
@@ -756,12 +818,28 @@ export class SchedulingsComponent implements OnInit {
 
   getStatusColor(status?: string): string {
     const colors: { [key: string]: string } = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-blue-100 text-blue-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
+      pending: 'bg-amber-100 text-amber-800 border border-amber-200',
+      confirmed: 'bg-blue-100 text-blue-800 border border-blue-200',
+      completed: 'bg-green-100 text-green-800 border border-green-200',
+      cancelled: 'bg-red-100 text-red-800 border border-red-200',
     };
-    return colors[status || 'pending'] || 'bg-yellow-100 text-yellow-800';
+    return (
+      colors[status || 'pending'] ||
+      'bg-amber-100 text-amber-800 border border-amber-200'
+    );
+  }
+
+  getStatusIcon(status?: string): string {
+    const icons: { [key: string]: string } = {
+      pending: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+      confirmed: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+      completed: 'M5 13l4 4L19 7',
+      cancelled: 'M6 18L18 6M6 6l12 12',
+    };
+    return (
+      icons[status || 'pending'] ||
+      'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+    );
   }
 
   updateStatus(

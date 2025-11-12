@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import {
   FormBuilder,
   FormGroup,
@@ -15,11 +16,23 @@ import { Establishment } from '../../models/establishment.model';
 import { Employee } from '../../services/employee.service';
 import { AuthService } from '../../services/auth.service';
 import { AlertService } from '../../services/alert.service';
+import {
+  BreadcrumbsComponent,
+  BreadcrumbItem,
+} from '../breadcrumbs/breadcrumbs.component';
+import { TooltipDirective } from '../../directives/tooltip.directive';
 
 @Component({
   selector: 'app-services',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    FormsModule,
+    RouterLink,
+    BreadcrumbsComponent,
+    TooltipDirective,
+  ],
   templateUrl: './services.component.html',
   styleUrl: './services.component.scss',
 })
@@ -33,6 +46,10 @@ export class ServicesComponent implements OnInit {
   form: FormGroup;
   subServices: SubService[] = [];
   isEmailVerified = false;
+  breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Dashboard', route: '/dashboard' },
+    { label: 'Serviços' },
+  ];
 
   constructor(
     private serviceService: ServiceService,

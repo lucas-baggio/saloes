@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import {
   FormBuilder,
   FormGroup,
@@ -10,11 +11,22 @@ import { EstablishmentService } from '../../services/establishment.service';
 import { Establishment } from '../../models/establishment.model';
 import { AuthService } from '../../services/auth.service';
 import { AlertService } from '../../services/alert.service';
+import {
+  BreadcrumbsComponent,
+  BreadcrumbItem,
+} from '../breadcrumbs/breadcrumbs.component';
+import { TooltipDirective } from '../../directives/tooltip.directive';
 
 @Component({
   selector: 'app-establishments',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterLink,
+    BreadcrumbsComponent,
+    TooltipDirective,
+  ],
   templateUrl: './establishments.component.html',
   styleUrl: './establishments.component.scss',
 })
@@ -26,6 +38,10 @@ export class EstablishmentsComponent implements OnInit {
   form: FormGroup;
   error: string = '';
   isEmailVerified = false;
+  breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Dashboard', route: '/dashboard' },
+    { label: 'Estabelecimentos' },
+  ];
 
   constructor(
     private establishmentService: EstablishmentService,

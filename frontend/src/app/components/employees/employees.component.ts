@@ -11,11 +11,21 @@ import { AuthService } from '../../services/auth.service';
 import { EstablishmentService } from '../../services/establishment.service';
 import { Establishment } from '../../models/establishment.model';
 import { AlertService } from '../../services/alert.service';
+import {
+  BreadcrumbsComponent,
+  BreadcrumbItem,
+} from '../breadcrumbs/breadcrumbs.component';
+import { TooltipDirective } from '../../directives/tooltip.directive';
 
 @Component({
   selector: 'app-employees',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    BreadcrumbsComponent,
+    TooltipDirective,
+  ],
   templateUrl: './employees.component.html',
   styleUrl: './employees.component.scss',
 })
@@ -27,6 +37,10 @@ export class EmployeesComponent implements OnInit {
   editingId: number | null = null;
   form: FormGroup;
   isEmailVerified = false;
+  breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Dashboard', route: '/dashboard' },
+    { label: 'Funcionários' },
+  ];
 
   constructor(
     private employeeService: EmployeeService,

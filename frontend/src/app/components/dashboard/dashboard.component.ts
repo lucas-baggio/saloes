@@ -18,13 +18,14 @@ import { AuthService } from '../../services/auth.service';
 import { SchedulingService } from '../../services/scheduling.service';
 import { Scheduling } from '../../models/service.model';
 import { Chart, registerables } from 'chart.js';
+import { BreadcrumbsComponent, BreadcrumbItem } from '../breadcrumbs/breadcrumbs.component';
 
 Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, BreadcrumbsComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -38,6 +39,9 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   stats: DashboardStats | null = null;
   revenueChart: RevenueChart | null = null;
+  breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Dashboard' },
+  ];
   topServices: TopService[] = [];
   schedulings: Scheduling[] = [];
   pastSchedulings: Scheduling[] = [];

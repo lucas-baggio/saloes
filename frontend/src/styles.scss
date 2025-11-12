@@ -30,6 +30,116 @@
   }
 
   .card {
-    @apply bg-white rounded-xl shadow-md p-6;
+    @apply bg-white rounded-xl shadow-md p-6 transition-all duration-300;
   }
+
+  // Animações suaves
+  .fade-in {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  .slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Tooltip customizado
+.custom-tooltip {
+  position: fixed;
+  z-index: 9999;
+  padding: 8px 12px;
+  background-color: #1f2937;
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+  max-width: 250px;
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.4;
+
+  &::after {
+    content: "";
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+  }
+
+  &.tooltip-top::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px 6px 0 6px;
+    border-color: #1f2937 transparent transparent transparent;
+  }
+
+  &.tooltip-bottom::after {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0 6px 6px 6px;
+    border-color: transparent transparent #1f2937 transparent;
+  }
+
+  &.tooltip-left::after {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 6px 0 6px 6px;
+    border-color: transparent transparent transparent #1f2937;
+  }
+
+  &.tooltip-right::after {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 6px 6px 6px 0;
+    border-color: transparent #1f2937 transparent transparent;
+  }
+}
+
+.has-tooltip {
+  cursor: help;
 }

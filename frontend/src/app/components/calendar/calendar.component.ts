@@ -5,6 +5,10 @@ import { RouterModule } from '@angular/router';
 import { SchedulingService } from '../../services/scheduling.service';
 import { Scheduling } from '../../models/service.model';
 import { AuthService } from '../../services/auth.service';
+import {
+  BreadcrumbsComponent,
+  BreadcrumbItem,
+} from '../breadcrumbs/breadcrumbs.component';
 
 interface CalendarDay {
   date: Date;
@@ -17,7 +21,13 @@ interface CalendarDay {
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, DatePipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    DatePipe,
+    BreadcrumbsComponent,
+  ],
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })
@@ -28,6 +38,10 @@ export class CalendarComponent implements OnInit {
   loading = false;
   viewMode: 'month' | 'week' = 'month';
   selectedDate: Date | null = null;
+  breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Dashboard', route: '/dashboard' },
+    { label: 'Calendário' },
+  ];
   selectedScheduling: Scheduling | null = null;
   user: any = null;
 

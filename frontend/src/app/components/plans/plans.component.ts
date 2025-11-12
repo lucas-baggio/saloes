@@ -5,11 +5,15 @@ import { PlanService } from '../../services/plan.service';
 import { Plan, UserPlan } from '../../models/plan.model';
 import { AuthService } from '../../services/auth.service';
 import { AlertService } from '../../services/alert.service';
+import {
+  BreadcrumbsComponent,
+  BreadcrumbItem,
+} from '../breadcrumbs/breadcrumbs.component';
 
 @Component({
   selector: 'app-plans',
   standalone: true,
-  imports: [CommonModule, DatePipe],
+  imports: [CommonModule, DatePipe, BreadcrumbsComponent],
   templateUrl: './plans.component.html',
   styleUrl: './plans.component.scss',
 })
@@ -19,6 +23,10 @@ export class PlansComponent implements OnInit {
   loading = false;
   subscribing = false;
   selectedInterval: 'monthly' | 'yearly' = 'monthly';
+  breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Dashboard', route: '/dashboard' },
+    { label: 'Planos' },
+  ];
 
   constructor(
     private planService: PlanService,
@@ -107,5 +115,26 @@ export class PlansComponent implements OnInit {
       this.currentPlan?.plan_id === planId &&
       this.currentPlan?.status === 'active'
     );
+  }
+
+  getMaxFeaturesLength(): number[] {
+    const plans = this.getFilteredPlans();
+    if (plans.length === 0) return [];
+    const maxLength = Math.max(
+      ...plans.map((plan) => plan.features?.length || 0),
+      0
+    );
+    return Array.from({ length: Math.min(maxLength, 5) }, (_, i) => i);
+  }
+
+  getFeatureName(index: number): string {
+    // Tenta pegar o nome da feature do primeiro plano que tiver essa feature
+    for (const plan of this.getFilteredPlans()) {
+      if (plan.features && plan.features[index]) {
+        // Extrai o nome da feature (remove checkmarks, etc)
+        return plan.features[index].replace(/^[✓✔✅]\s*/, '').trim();
+      }
+    }
+    return `Recurso ${index + 1}`;
   }
 }

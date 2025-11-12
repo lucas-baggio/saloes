@@ -1,0 +1,35 @@
+<nav *ngIf="items.length > 0" class="mb-4" aria-label="Breadcrumb">
+  <ol class="flex items-center space-x-2 text-sm">
+    <li *ngFor="let item of items; let last = last" class="flex items-center">
+      <a
+        *ngIf="!last && item.route"
+        [routerLink]="item.route"
+        class="text-blue-600 hover:text-blue-800 transition-colors"
+      >
+        {{ item.label }}
+      </a>
+      <span
+        *ngIf="last || !item.route"
+        [class.text-gray-500]="!last"
+        [class.text-gray-900]="last"
+        [class.font-medium]="last"
+      >
+        {{ item.label }}
+      </span>
+      <svg
+        *ngIf="!last"
+        class="h-4 w-4 text-gray-400 mx-2"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 5l7 7-7 7"
+        />
+      </svg>
+    </li>
+  </ol>
+</nav>

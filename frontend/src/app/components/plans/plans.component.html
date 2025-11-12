@@ -1,4 +1,6 @@
 <div class="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+  <app-breadcrumbs [items]="breadcrumbs"></app-breadcrumbs>
+
   <div class="mb-6 sm:mb-8">
     <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Planos</h1>
     <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
@@ -42,14 +44,33 @@
   <!-- Plano atual -->
   <div
     *ngIf="currentPlan && currentPlan.status === 'active'"
-    class="mb-6 bg-primary-50 border border-primary-200 rounded-lg p-4"
+    class="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-6 shadow-lg fade-in"
   >
-    <div class="flex items-center justify-between">
-      <div>
-        <h3 class="text-lg font-semibold text-primary-900">
-          Plano Atual: {{ currentPlan.plan?.name }}
-        </h3>
-        <p class="text-sm text-primary-700 mt-1">
+    <div
+      class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+    >
+      <div class="flex-1">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="bg-blue-600 rounded-full p-2">
+            <svg
+              class="h-5 w-5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-blue-900">
+            Plano Atual: {{ currentPlan.plan?.name }}
+          </h3>
+        </div>
+        <p class="text-sm text-blue-700 ml-11">
           Válido até
           {{
             currentPlan.ends_at
@@ -61,7 +82,7 @@
       <button
         (click)="cancelPlan()"
         [disabled]="subscribing"
-        class="btn btn-secondary text-sm"
+        class="btn btn-secondary text-sm whitespace-nowrap"
       >
         Cancelar Plano
       </button>
@@ -76,6 +97,156 @@
     <p class="mt-2 text-gray-600">Carregando planos...</p>
   </div>
 
+  <!-- Tabela de Comparação -->
+  <div *ngIf="!loading && getFilteredPlans().length > 1" class="mb-8 fade-in">
+    <div class="card overflow-x-auto">
+      <h2 class="text-xl font-bold text-gray-900 mb-6 text-center">
+        Comparação de Planos
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[600px]">
+          <thead>
+            <tr class="border-b-2 border-gray-200">
+              <th class="text-left py-3 px-4 font-semibold text-gray-700">
+                Recurso
+              </th>
+              <th
+                *ngFor="let plan of getFilteredPlans()"
+                [class.bg-blue-50]="isCurrentPlan(plan.id)"
+                [class.border-l-2]="isCurrentPlan(plan.id)"
+                [class.border-blue-400]="isCurrentPlan(plan.id)"
+                class="text-center py-3 px-4 font-semibold text-gray-900 min-w-[150px]"
+              >
+                <div class="flex flex-col items-center">
+                  <span [class.text-blue-700]="isCurrentPlan(plan.id)">{{
+                    plan.name
+                  }}</span>
+                  <span
+                    *ngIf="isCurrentPlan(plan.id)"
+                    class="text-xs text-blue-600 font-medium mt-1"
+                  >
+                    (Atual)
+                  </span>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Preço -->
+            <tr class="border-b border-gray-100 hover:bg-gray-50">
+              <td class="py-3 px-4 font-medium text-gray-700">Preço</td>
+              <td
+                *ngFor="let plan of getFilteredPlans()"
+                [class.bg-blue-50]="isCurrentPlan(plan.id)"
+                class="text-center py-3 px-4"
+              >
+                <span
+                  [class.text-blue-700]="isCurrentPlan(plan.id)"
+                  class="font-semibold"
+                >
+                  R$ {{ plan.price | number : "1.2-2" }}
+                </span>
+                <span
+                  [class.text-blue-600]="isCurrentPlan(plan.id)"
+                  class="text-sm text-gray-600"
+                >
+                  /{{ plan.interval === "monthly" ? "mês" : "ano" }}
+                </span>
+              </td>
+            </tr>
+            <!-- Estabelecimentos -->
+            <tr class="border-b border-gray-100 hover:bg-gray-50">
+              <td class="py-3 px-4 font-medium text-gray-700">
+                Estabelecimentos
+              </td>
+              <td
+                *ngFor="let plan of getFilteredPlans()"
+                [class.bg-blue-50]="isCurrentPlan(plan.id)"
+                class="text-center py-3 px-4"
+              >
+                <span
+                  [class.text-blue-700]="isCurrentPlan(plan.id)"
+                  class="font-semibold"
+                >
+                  {{ plan.max_establishments ?? "Ilimitado" }}
+                </span>
+              </td>
+            </tr>
+            <!-- Serviços -->
+            <tr class="border-b border-gray-100 hover:bg-gray-50">
+              <td class="py-3 px-4 font-medium text-gray-700">Serviços</td>
+              <td
+                *ngFor="let plan of getFilteredPlans()"
+                [class.bg-blue-50]="isCurrentPlan(plan.id)"
+                class="text-center py-3 px-4"
+              >
+                <span
+                  [class.text-blue-700]="isCurrentPlan(plan.id)"
+                  class="font-semibold"
+                >
+                  {{ plan.max_services ?? "Ilimitado" }}
+                </span>
+              </td>
+            </tr>
+            <!-- Funcionários -->
+            <tr class="border-b border-gray-100 hover:bg-gray-50">
+              <td class="py-3 px-4 font-medium text-gray-700">Funcionários</td>
+              <td
+                *ngFor="let plan of getFilteredPlans()"
+                [class.bg-blue-50]="isCurrentPlan(plan.id)"
+                class="text-center py-3 px-4"
+              >
+                <span
+                  [class.text-blue-700]="isCurrentPlan(plan.id)"
+                  class="font-semibold"
+                >
+                  {{ plan.max_employees ?? "Ilimitado" }}
+                </span>
+              </td>
+            </tr>
+            <!-- Features -->
+            <tr
+              *ngFor="let featureIndex of getMaxFeaturesLength()"
+              class="border-b border-gray-100 hover:bg-gray-50"
+            >
+              <td class="py-3 px-4 font-medium text-gray-700">
+                {{ getFeatureName(featureIndex) }}
+              </td>
+              <td
+                *ngFor="let plan of getFilteredPlans()"
+                [class.bg-blue-50]="isCurrentPlan(plan.id)"
+                class="text-center py-3 px-4"
+              >
+                <span *ngIf="plan.features && plan.features[featureIndex]">
+                  <svg
+                    [class.text-blue-600]="isCurrentPlan(plan.id)"
+                    class="h-5 w-5 text-green-500 mx-auto"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </span>
+                <span
+                  *ngIf="!plan.features || !plan.features[featureIndex]"
+                  class="text-gray-400"
+                >
+                  —
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- Lista de planos -->
   <div
     *ngIf="!loading"
@@ -83,33 +254,76 @@
   >
     <div
       *ngFor="let plan of getFilteredPlans()"
-      [class.ring-2]="plan.is_popular"
-      [class.ring-primary-500]="plan.is_popular"
-      [class.relative]="plan.is_popular"
-      class="card hover:shadow-xl transition-all duration-300"
+      [class.ring-2]="plan.is_popular || isCurrentPlan(plan.id)"
+      [class.ring-primary-500]="plan.is_popular && !isCurrentPlan(plan.id)"
+      [class.ring-blue-500]="isCurrentPlan(plan.id)"
+      [class.ring-4]="isCurrentPlan(plan.id)"
+      [class.bg-blue-50]="isCurrentPlan(plan.id)"
+      [class.border-2]="isCurrentPlan(plan.id)"
+      [class.border-blue-400]="isCurrentPlan(plan.id)"
+      [class.relative]="plan.is_popular || isCurrentPlan(plan.id)"
+      class="card hover:shadow-xl transition-all duration-300 slide-up"
     >
       <!-- Badge popular -->
       <div
-        *ngIf="plan.is_popular"
-        class="absolute -top-4 left-1/2 transform -translate-x-1/2"
+        *ngIf="plan.is_popular && !isCurrentPlan(plan.id)"
+        class="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10"
       >
         <span
-          class="bg-primary-600 text-white px-4 py-1 rounded-full text-xs font-semibold"
+          class="bg-primary-600 text-white px-4 py-1 rounded-full text-xs font-semibold shadow-lg"
         >
           Mais Popular
         </span>
       </div>
 
+      <!-- Badge Plano Atual -->
+      <div
+        *ngIf="isCurrentPlan(plan.id)"
+        class="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10"
+      >
+        <span
+          class="bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1"
+        >
+          <svg
+            class="h-3 w-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          Plano Atual
+        </span>
+      </div>
+
       <div class="text-center mb-6">
-        <h3 class="text-2xl font-bold text-gray-900 mb-2">{{ plan.name }}</h3>
-        <p *ngIf="plan.description" class="text-sm text-gray-600 mb-4">
+        <h3
+          [class.text-blue-900]="isCurrentPlan(plan.id)"
+          class="text-2xl font-bold text-gray-900 mb-2"
+        >
+          {{ plan.name }}
+        </h3>
+        <p
+          *ngIf="plan.description"
+          [class.text-blue-700]="isCurrentPlan(plan.id)"
+          class="text-sm text-gray-600 mb-4"
+        >
           {{ plan.description }}
         </p>
         <div class="mb-4">
-          <span class="text-4xl font-bold text-gray-900"
+          <span
+            [class.text-blue-700]="isCurrentPlan(plan.id)"
+            class="text-4xl font-bold text-gray-900"
             >R$ {{ plan.price | number : "1.2-2" }}</span
           >
-          <span class="text-gray-600 ml-2"
+          <span
+            [class.text-blue-600]="isCurrentPlan(plan.id)"
+            class="text-gray-600 ml-2"
             >/{{ plan.interval === "monthly" ? "mês" : "ano" }}</span
           >
         </div>
@@ -138,13 +352,33 @@
         (click)="subscribe(plan)"
         [disabled]="subscribing || isCurrentPlan(plan.id)"
         [class]="
-          plan.is_popular
+          isCurrentPlan(plan.id)
+            ? 'btn w-full bg-blue-600 text-white cursor-not-allowed opacity-75'
+            : plan.is_popular
             ? 'btn btn-primary w-full'
             : 'btn btn-secondary w-full'
         "
         class="mt-auto"
       >
-        <span *ngIf="isCurrentPlan(plan.id)">Plano Atual</span>
+        <span
+          *ngIf="isCurrentPlan(plan.id)"
+          class="flex items-center justify-center gap-2"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          Plano Atual
+        </span>
         <span *ngIf="!isCurrentPlan(plan.id)">Assinar Plano</span>
       </button>
     </div>
