@@ -22,7 +22,7 @@ export const emailVerifiedGuard: CanActivateFn = (route, state) => {
       'Email não verificado',
       'Você precisa verificar seu email para acessar esta funcionalidade. Verifique sua caixa de entrada.'
     );
-    router.navigate(['/dashboard']);
+    router.navigate(['/calendar']);
     return false;
   }
 

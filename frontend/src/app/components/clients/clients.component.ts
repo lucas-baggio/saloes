@@ -12,6 +12,7 @@ import { ClientService } from '../../services/client.service';
 import { Client } from '../../models/client.model';
 import { AuthService } from '../../services/auth.service';
 import { AlertService } from '../../services/alert.service';
+import { ContactsService, ContactInfo } from '../../services/contacts.service';
 import {
   BreadcrumbsComponent,
   BreadcrumbItem,
@@ -47,10 +48,14 @@ export class ClientsComponent implements OnInit {
     { label: 'Clientes' },
   ];
 
+  importingContacts = false;
+  contactsAvailable = false;
+
   constructor(
     private clientService: ClientService,
     private authService: AuthService,
     private alertService: AlertService,
+    private contactsService: ContactsService,
     private fb: FormBuilder
   ) {
     this.form = this.fb.group({
@@ -70,6 +75,7 @@ export class ClientsComponent implements OnInit {
   ngOnInit() {
     const user = this.authService.getCurrentUser();
     this.isEmailVerified = !!user?.email_verified_at;
+    this.contactsAvailable = this.contactsService.isAvailable();
     this.loadClients();
   }
 
@@ -279,5 +285,150 @@ export class ClientsComponent implements OnInit {
     // Se for apenas o caminho relativo, construir URL completa
     const baseUrl = environment.apiUrl.replace('/api', '');
     return `${baseUrl}/storage/${photo}`;
+  }
+
+  /**
+   * Pergunta ao usuário se quer importar contatos e importa se aceitar
+   */
+  async importContactsFromPhone() {
+    if (!this.isEmailVerified) {
+      this.alertService.warning(
+        'Email não verificado',
+        'Verifique seu email para importar contatos.'
+      );
+      return;
+    }
+
+    if (!this.contactsAvailable) {
+      this.alertService.info(
+        'Funcionalidade não disponível',
+        'A importação de contatos está disponível apenas em dispositivos móveis com navegadores compatíveis (Chrome/Edge no Android, Safari no iOS).'
+      );
+      return;
+    }
+
+    const result = await this.alertService.confirm(
+      'Importar Contatos',
+      'Deseja importar contatos do seu celular? Você poderá selecionar múltiplos contatos de uma vez na tela de seleção. Os contatos selecionados serão cadastrados como clientes.',
+      'Importar',
+      'Cancelar'
+    );
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    // Mostra instruções sobre como selecionar múltiplos contatos
+    await this.alertService.info(
+      'Como selecionar múltiplos contatos',
+      'Na tela de seleção que abrirá:\n\n' +
+      '• Toque nos contatos para marcar/desmarcar\n' +
+      '• Procure por um botão "Selecionar todos" ou "Marcar todos"\n' +
+      '• Ou use a seleção múltipla do seu navegador\n' +
+      '• Depois confirme a seleção'
+    );
+
+    this.importingContacts = true;
+
+    try {
+      const contacts = await this.contactsService.importContacts();
+
+      if (contacts.length === 0) {
+        this.alertService.info(
+          'Nenhum contato selecionado',
+          'Nenhum contato foi selecionado ou os contatos selecionados não tinham informações válidas.'
+        );
+        this.importingContacts = false;
+        return;
+      }
+
+      // Processa e cadastra os contatos
+      await this.processAndCreateContacts(contacts);
+    } catch (error: any) {
+      this.alertService.error(
+        'Erro ao importar contatos',
+        error.message || 'Ocorreu um erro ao importar os contatos.'
+      );
+    } finally {
+      this.importingContacts = false;
+    }
+  }
+
+  /**
+   * Processa e cria os clientes a partir dos contatos importados
+   */
+  private async processAndCreateContacts(contacts: ContactInfo[]) {
+    let successCount = 0;
+    let errorCount = 0;
+    let skippedCount = 0;
+
+    // Primeiro, carrega os clientes existentes para verificar duplicatas
+    const existingClients = this.clients;
+
+    for (const contact of contacts) {
+      try {
+        // Verifica se já existe um cliente com o mesmo telefone ou email
+        const duplicate = existingClients.find(
+          (c) =>
+            (contact.phone && c.phone === contact.phone) ||
+            (contact.email && c.email && c.email === contact.email)
+        );
+
+        if (duplicate) {
+          skippedCount++;
+          continue;
+        }
+
+        // Cria o cliente
+        const clientData: Partial<Client> = {
+          name: contact.name || 'Cliente sem nome',
+          phone: contact.phone,
+          email: contact.email,
+        };
+
+        await new Promise<void>((resolve, reject) => {
+          this.clientService.create(clientData).subscribe({
+            next: () => {
+              successCount++;
+              resolve();
+            },
+            error: (err) => {
+              errorCount++;
+              console.error('Erro ao criar cliente:', err);
+              resolve(); // Continua processando os outros
+            },
+          });
+        });
+
+        // Pequeno delay para não sobrecarregar o servidor
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      } catch (error) {
+        errorCount++;
+        console.error('Erro ao processar contato:', error);
+      }
+    }
+
+    // Recarrega a lista de clientes
+    this.loadClients();
+
+    // Mostra resultado
+    let message = '';
+    if (successCount > 0) {
+      message += `${successCount} cliente(s) cadastrado(s) com sucesso. `;
+    }
+    if (skippedCount > 0) {
+      message += `${skippedCount} contato(s) ignorado(s) (já existem). `;
+    }
+    if (errorCount > 0) {
+      message += `${errorCount} contato(s) com erro.`;
+    }
+
+    if (successCount > 0) {
+      this.alertService.success('Contatos importados', message.trim());
+    } else if (skippedCount > 0) {
+      this.alertService.info('Nenhum novo contato', message.trim());
+    } else {
+      this.alertService.error('Erro ao importar', message.trim());
+    }
   }
 }

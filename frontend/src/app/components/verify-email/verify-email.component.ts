@@ -117,8 +117,8 @@ export class VerifyEmailComponent implements OnInit, OnDestroy {
                     'Sua conta foi ativada com sucesso. Você já pode usar todos os recursos da plataforma.'
                   )
                   .then(() => {
-                    // Redirecionar para dashboard após clicar em OK
-                    this.router.navigate(['/dashboard']);
+                    // Redirecionar para calendário após clicar em OK
+                    this.router.navigate(['/calendar']);
                   });
               },
               error: () => {
@@ -129,7 +129,7 @@ export class VerifyEmailComponent implements OnInit, OnDestroy {
                     'Sua conta foi ativada com sucesso. Você já pode usar todos os recursos da plataforma.'
                   )
                   .then(() => {
-                    this.router.navigate(['/dashboard']);
+                    this.router.navigate(['/calendar']);
                   });
               },
             });

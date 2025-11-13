@@ -65,7 +65,7 @@
 
       <!-- Navigation -->
       <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <a
+        <!-- <a
           routerLink="/dashboard"
           routerLinkActive="bg-blue-50 text-blue-700 border-r-4 border-blue-600"
           class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
@@ -84,7 +84,7 @@
             />
           </svg>
           <span class="font-medium">Dashboard</span>
-        </a>
+        </a> -->
 
         <a
           *ngIf="user?.role === 'owner' || user?.role === 'admin'"
@@ -676,6 +676,31 @@
                   </span>
                 </div>
               </div>
+              <!-- Botão de Instalar App -->
+              <button
+                *ngIf="canInstallPwa"
+                (click)="installPwa()"
+                class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 mb-2 shadow-md"
+              >
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+                <span>{{
+                  pwaInstallService.isAppInstalled()
+                    ? "Reinstalar App"
+                    : "Instalar App"
+                }}</span>
+              </button>
               <button
                 (click)="logout(); isMenuOpen = false"
                 class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"

@@ -7,12 +7,11 @@ export const ownerGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
 
   const user = authService.getCurrentUser();
-  
+
   if (user && (user.role === 'owner' || user.role === 'admin')) {
     return true;
   }
 
-  router.navigate(['/dashboard']);
+  router.navigate(['/calendar']);
   return false;
 };
-

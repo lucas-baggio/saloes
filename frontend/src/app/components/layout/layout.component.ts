@@ -15,6 +15,7 @@ import { PlanService } from '../../services/plan.service';
 import { UserPlan } from '../../models/plan.model';
 import { environment } from '../../../environments/environment';
 import { filter, Subscription } from 'rxjs';
+import { PwaInstallService } from '../../services/pwa-install.service';
 
 @Component({
   selector: 'app-layout',
@@ -30,18 +31,23 @@ export class LayoutComponent implements OnInit, OnDestroy {
   isDevelopment = !environment.production;
   loadingPlan = false;
   private routerSubscription?: Subscription;
+  private pwaInstallSubscription?: Subscription;
+
+  canInstallPwa = false;
 
   constructor(
     private authService: AuthService,
     private router: Router,
     private apiService: ApiService,
     private alertService: AlertService,
-    private planService: PlanService
+    private planService: PlanService,
+    public pwaInstallService: PwaInstallService
   ) {}
 
   ngOnInit() {
     this.loadUser();
     this.loadCurrentPlan();
+    this.checkPwaInstall();
 
     // Recarrega o plano quando navega (útil após pagamento)
     this.routerSubscription = this.router.events
@@ -68,9 +74,57 @@ export class LayoutComponent implements OnInit, OnDestroy {
       });
   }
 
+  checkPwaInstall() {
+    // Escuta mudanças no estado de instalação
+    this.pwaInstallSubscription = this.pwaInstallService.canInstall$.subscribe(
+      (canInstall) => {
+        this.canInstallPwa = canInstall;
+      }
+    );
+  }
+
+  async installPwa() {
+    const installed = await this.pwaInstallService.install();
+    if (installed) {
+      this.alertService.success(
+        'App instalado!',
+        'O aplicativo foi instalado com sucesso na sua tela inicial.'
+      );
+      this.isMenuOpen = false;
+    } else {
+      // Se não instalou mas é PWA, mostra instruções mais detalhadas
+      const userAgent = navigator.userAgent.toLowerCase();
+      let instructions = '';
+
+      if (/iphone|ipad|ipod/.test(userAgent)) {
+        instructions =
+          'Para instalar no iPhone/iPad:\n\n' +
+          '1. Toque no botão de compartilhar (ícone de quadrado com seta para cima)\n' +
+          '2. Role para baixo e toque em "Adicionar à Tela de Início"\n' +
+          '3. Toque em "Adicionar" no canto superior direito';
+      } else if (/android/.test(userAgent)) {
+        instructions =
+          'Para instalar no Android:\n\n' +
+          '1. Toque no menu (três pontos) no canto superior direito do navegador\n' +
+          '2. Selecione "Adicionar à tela inicial" ou "Instalar app"\n' +
+          '3. Confirme a instalação na popup';
+      } else {
+        instructions =
+          'Para instalar:\n\n' +
+          '1. Procure pelo ícone de instalação (➕) na barra de endereço\n' +
+          '2. Ou use o menu do navegador (três pontos) e procure por "Instalar aplicativo"';
+      }
+
+      this.alertService.info('Como instalar o app', instructions);
+    }
+  }
+
   ngOnDestroy() {
     if (this.routerSubscription) {
       this.routerSubscription.unsubscribe();
+    }
+    if (this.pwaInstallSubscription) {
+      this.pwaInstallSubscription.unsubscribe();
     }
   }
 

@@ -540,7 +540,7 @@ export class PaymentComponent implements OnInit, OnDestroy {
             'Seu plano foi ativado com sucesso.'
           );
           setTimeout(() => {
-            this.router.navigate(['/owner/dashboard']);
+            this.router.navigate(['/calendar']);
           }, 3000);
         } else if (response.status === 'pending') {
           if (this.selectedMethod === 'pix') {
@@ -667,7 +667,7 @@ export class PaymentComponent implements OnInit, OnDestroy {
               'Seu plano foi ativado com sucesso. Redirecionando...'
             );
             setTimeout(() => {
-              this.router.navigate(['/owner/dashboard']);
+              this.router.navigate(['/calendar']);
             }, 2000);
           } else if (response.status === 'pending') {
             // Continua o polling se ainda estiver pendente
