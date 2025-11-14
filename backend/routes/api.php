@@ -15,6 +15,7 @@ use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SchedulingController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SubServiceController;
+use App\Http\Controllers\SupportController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -63,6 +64,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Pagamentos
     Route::post('payments/process', [PaymentController::class, 'process']);
     Route::get('payments/{paymentId}/status', [PaymentController::class, 'getStatus']);
+
+    // Suporte
+    Route::post('support/send', [SupportController::class, 'sendSupportMessage']);
 });
 
 // Webhook do Mercado Pago (sem autenticação)
