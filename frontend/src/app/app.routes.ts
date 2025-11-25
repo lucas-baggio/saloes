@@ -154,6 +154,14 @@ export const routes: Routes = [
           ),
         canActivate: [ownerGuard, emailVerifiedGuard],
       },
+      {
+        path: 'support',
+        loadComponent: () =>
+          import('./components/support/support.component').then(
+            (m) => m.SupportComponent
+          ),
+        canActivate: [authGuard],
+      },
       // Rota de teste de limites (apenas em desenvolvimento
     ],
   },

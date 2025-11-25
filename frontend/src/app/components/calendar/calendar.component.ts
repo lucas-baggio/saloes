@@ -36,8 +36,9 @@ export class CalendarComponent implements OnInit {
   calendarDays: CalendarDay[] = [];
   schedulings: Scheduling[] = [];
   loading = false;
-  viewMode: 'month' | 'week' = 'month';
+  viewMode: 'month' | 'week' | 'day' = 'day';
   selectedDate: Date | null = null;
+  timeSlots: string[] = [];
   breadcrumbs: BreadcrumbItem[] = [
     { label: 'Dashboard', route: '/dashboard' },
     { label: 'Calendário' },
@@ -69,7 +70,22 @@ export class CalendarComponent implements OnInit {
 
   ngOnInit() {
     this.user = this.authService.getCurrentUser();
+    this.generateTimeSlots();
+    this.selectedDate = new Date();
     this.loadSchedulings();
+  }
+
+  generateTimeSlots() {
+    // Gera horários de 06:00 até 23:00 em intervalos de 30 minutos
+    this.timeSlots = [];
+    for (let hour = 6; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time = `${String(hour).padStart(2, '0')}:${String(
+          minute
+        ).padStart(2, '0')}`;
+        this.timeSlots.push(time);
+      }
+    }
   }
 
   loadSchedulings() {
@@ -259,5 +275,169 @@ export class CalendarComponent implements OnInit {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
+  }
+
+  getStatusDotColor(status: string): string {
+    const colors: { [key: string]: string } = {
+      pending: 'bg-yellow-500',
+      confirmed: 'bg-blue-500',
+      completed: 'bg-green-500',
+      cancelled: 'bg-red-500',
+    };
+    return colors[status] || 'bg-gray-500';
+  }
+
+  toggleViewMode() {
+    if (this.viewMode === 'month') {
+      this.viewMode = 'day';
+      if (!this.selectedDate) {
+        this.selectedDate = new Date();
+      }
+    } else if (this.viewMode === 'day') {
+      this.viewMode = 'month';
+    }
+    this.cdr.detectChanges();
+  }
+
+  getSchedulingsForTimeSlot(timeSlot: string, date: Date): Scheduling[] {
+    if (!date) return [];
+    const dateStr = this.formatDate(date);
+    return this.schedulings.filter((scheduling) => {
+      let schedulingDateStr = scheduling.scheduled_date;
+      if (schedulingDateStr && !/^\d{4}-\d{2}-\d{2}$/.test(schedulingDateStr)) {
+        const schedulingDate = new Date(scheduling.scheduled_date);
+        schedulingDateStr = this.formatDate(schedulingDate);
+      }
+
+      if (schedulingDateStr !== dateStr) return false;
+
+      // Compara o horário (formato HH:mm)
+      const schedulingTime = scheduling.scheduled_time?.substring(0, 5) || '';
+      if (!schedulingTime) return false;
+
+      // Arredonda o horário do agendamento para o timeSlot mais próximo (para baixo)
+      const roundedTime = this.roundTimeToSlot(schedulingTime);
+      return roundedTime === timeSlot;
+    });
+  }
+
+  roundTimeToSlot(time: string): string {
+    // Converte "HH:mm" para minutos desde meia-noite
+    const [hours, minutes] = time.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+
+    // Arredonda para baixo para o intervalo de 30 minutos mais próximo
+    const roundedMinutes = Math.floor(totalMinutes / 30) * 30;
+
+    // Converte de volta para "HH:mm"
+    const roundedHours = Math.floor(roundedMinutes / 60);
+    const roundedMins = roundedMinutes % 60;
+
+    return `${String(roundedHours).padStart(2, '0')}:${String(
+      roundedMins
+    ).padStart(2, '0')}`;
+  }
+
+  previousDay() {
+    if (this.selectedDate) {
+      this.selectedDate = new Date(
+        this.selectedDate.getFullYear(),
+        this.selectedDate.getMonth(),
+        this.selectedDate.getDate() - 1
+      );
+    }
+  }
+
+  nextDay() {
+    if (this.selectedDate) {
+      this.selectedDate = new Date(
+        this.selectedDate.getFullYear(),
+        this.selectedDate.getMonth(),
+        this.selectedDate.getDate() + 1
+      );
+    }
+  }
+
+  goToTodayDay() {
+    this.selectedDate = new Date();
+  }
+
+  openWhatsApp(scheduling: Scheduling) {
+    if (!scheduling.client?.phone) {
+      return;
+    }
+
+    // Remove caracteres não numéricos
+    let phone = scheduling.client.phone.replace(/\D/g, '');
+
+    // Se não começar com 55 (código do Brasil), adiciona
+    if (!phone.startsWith('55')) {
+      phone = '55' + phone;
+    }
+
+    // Mensagem padrão - parsear data manualmente para evitar problemas de timezone
+    let formattedDate = '';
+    if (scheduling.scheduled_date) {
+      // Se a data já está no formato YYYY-MM-DD, parsear manualmente
+      if (/^\d{4}-\d{2}-\d{2}$/.test(scheduling.scheduled_date)) {
+        const [year, month, day] = scheduling.scheduled_date
+          .split('-')
+          .map(Number);
+        const date = new Date(year, month - 1, day); // month - 1 porque Date usa 0-11
+        formattedDate = date.toLocaleDateString('pt-BR', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        });
+      } else {
+        // Se não estiver no formato esperado, usar o método anterior
+        const date = new Date(scheduling.scheduled_date);
+        formattedDate = date.toLocaleDateString('pt-BR', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        });
+      }
+    }
+    const message = encodeURIComponent(
+      `Olá ${
+        scheduling.client_name
+      }! Lembramos que você tem um agendamento conosco no dia ${formattedDate} às ${this.formatTime(
+        scheduling.scheduled_time
+      )}.${
+        scheduling.service?.name ? ` Serviço: ${scheduling.service.name}` : ''
+      }`
+    );
+
+    // Abre WhatsApp Web ou App
+    const url = `https://wa.me/${phone}?text=${message}`;
+    window.open(url, '_blank');
+  }
+
+  updateStatus(status: 'pending' | 'confirmed' | 'completed' | 'cancelled') {
+    if (!this.selectedScheduling) {
+      return;
+    }
+
+    this.schedulingService
+      .update(this.selectedScheduling.id, { status })
+      .subscribe({
+        next: (updated) => {
+          // Atualiza o agendamento na lista
+          const index = this.schedulings.findIndex((s) => s.id === updated.id);
+          if (index !== -1) {
+            this.schedulings[index] = updated;
+          }
+          this.selectedScheduling = updated;
+          this.generateCalendar();
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          console.error('Erro ao atualizar status:', err);
+          // Aqui você pode adicionar uma notificação de erro
+        },
+      });
   }
 }
